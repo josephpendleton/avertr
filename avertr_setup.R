@@ -105,11 +105,16 @@ ff_load_bin_data_raw <- expand_grid(rdf_filepaths, ranges) |>
 ## NEI Emission Factors =======
 # We only want 2023 emission factors
 nei_efs <- nei_efs |> 
-  select(`Full Name`:`ORSPL|Unit|Region`, contains("2023"))
+  select(`Full Name`:`ORSPL|Unit|Region`, contains("2023")) |> 
+  select(!c(County, Generation2023, `Heat Input2023`))
 
 # Get only the region from the ORSPL|Unit|Region column
 nei_efs <- nei_efs |> 
-  separate_wider_delim(`ORSPL|Unit|Region`, "|", names = c(NA, NA, "Region"))
+  separate_wider_delim(
+    `ORSPL|Unit|Region`,
+    "|",
+    names = c("ORISPL Code", "Unit Code", "Region")
+  )
 
 # And we want a list containing the NEI EFs for each region
 nei_efs <- nei_efs |> 
@@ -129,16 +134,12 @@ ff_load_bin_data <- ff_load_bin_data_raw |>
 
 # In each df, select only relevant columns
 ff_load_bin_data <- ff_load_bin_data |> 
-  map(~select(., !(State:`Unit Code`)))
+  map(~select(., !(State:FuelType)))
 
-# # Add columns three columns to each of the data measure tables indicating: 1. A
-# #   column indicating the data measure for the table, 2. A column with the raw
-# #   load, and 3. A column with the datetime hour
-# ff_load_bin_data <- ff_load_bin_data |> 
-#   map2(
-#     rep(data_measures, 14),
-#     ~ mutate(.x, data_measure_col = .y, .after = `Full Unit Name`)
-#   )
+# Change data type of ORISPL code to character
+ff_load_bin_data <- ff_load_bin_data |> 
+  map(~ mutate(.x, `ORISPL Code` = as.character(`ORISPL Code`)))
+  
 
 
 ## Prep Load Bin Keys ======
@@ -221,14 +222,18 @@ ff_load_bin_data_final <- ff_load_bin_data_final |>
   map(bind_cols) |> 
   suppressMessages()
 
-#  Next, you have a bunch of duplicated Full Unit Name, ff_load_bin_col, and
-#   ff_load_bin_next_col columns, so remove them by only selecting the first 3
-#   instances of those columns plus all the data columns
+#  Next, you have a bunch of unnecessarily duplicated columns, so remove them by
+#   only selecting the first instances of those columns, plus all the data
+#   columns. Also rename to remove the ...1, ...2, etc. from the column names
 ff_load_bin_data_final <- ff_load_bin_data_final |> 
-  map(~ select(.x, `Full Unit Name...1`:ff_load_bin_next_col...3 | contains("data")))
-
-# (This data is not tidy. I tried making it tidy by pivoting longer and having a
-#   data measure column, but I ran out of RAM. So it will remain untidy.)
+  map(~ select(.x, `ORISPL Code...1`:ff_load_bin_next_col...5 | contains("data"))) |> 
+  map(~ rename_with(
+    .data = .x,
+    .fn = str_sub,
+    .cols = `ORISPL Code...1`:ff_load_bin_next_col...5,
+    start = 1L,
+    end = -5L)
+  )
 
 # Save
 write_rds(ff_load_bin_data_final, "./avertr_setup_output/ff_load_bin_data_final.rds")
@@ -297,7 +302,7 @@ ff_load_bin_8760s_bau <- load_8760s_bau |>
 assigned_data_regions_bau <- map2(
   ff_load_bin_8760s_bau,
   ff_load_bin_data_final,
-  left_join, join_by(ff_load_bin_8760_col == ff_load_bin_col...2)
+  left_join, join_by(ff_load_bin_8760_col == ff_load_bin_col)
 )
 
 
@@ -344,7 +349,7 @@ ozone_split <- function(assigned_data) {
 assigned_data_regions_selected_bau <- assigned_data_regions_bau |> 
   map(ozone_split)
 
-# To save some RAM
+# To save some memory
 rm(assigned_data_regions_bau)
 
 
@@ -390,41 +395,141 @@ interpolate <- function(assigned_data) {
 
 interped_data_regions <- map(assigned_data_regions_selected_bau, interpolate)
 
+# To save some memory
+rm(assigned_data_regions_selected_bau)
 
 
 ## Add PM2.5, VOCs, NH3 =========
 # PM2.5, VOCs, and NH3 are estimated by multiplying the heat data measure by a
 #   generating unit-specific emission factor from the NEI.
 
+### fix join issue --------------
+# # If we try joining by ORISPL Code and Unit Code, we see that there are some
+# #   EGUs in interped_data_regions which do not have any match in the NEI EFs:
+# interped_anti_join <- interped_data_regions |>
+#   map2(nei_efs, anti_join, by = join_by(`ORISPL Code`, `Unit Code`))
+# 
+# # Inspection shows that there's a problem with how the Unit Code column data
+# #   was entered into the Regional Data Files. E.g., one unit code is "3-1" but
+# #   it gets read into the Regional Data File as the date March 1. And codes
+# #   like "01" are simply read as "1," etc.
+# 
+# # Fortunately, if we take the anti-joined data, we can see that by joining on
+# #   the rows that failed to join using ORISPL code and unit name, we get
+# #   almost all of them to match
+# interped_anti_join <- interped_anti_join |>
+#   map2(
+#     nei_efs,
+#     anti_join,
+#     by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
+#   )
+# 
+# # (Why not just join on unit name in the first place? Because some of the
+# #   unit names differ between the NEI data and the RDF. ORISPL and Unit Code
+# #   should be more reliable.)
+# 
+# # What are the stragglers? Just these units from Mid-Atlantic
+# interped_anti_join |>
+#   pluck(5) |>
+#   distinct(`ORISPL Code`, `Unit Code`)
+
+# Correct the stragglers by hand
+interped_data_regions[[5]] <- interped_data_regions[[5]] |> 
+  mutate(`Unit Code` = case_when(
+    # In NEI EFs sheet, only one unit with ORISPL 50611. It's unit code is
+    #   listed as 031, which makes perfect sense.
+    `ORISPL Code` == "50611" & `Unit Code` == "31" ~ "031",
+    # In NEI EFs sheetm exactly three units with ORISPL 55297. They have unit
+    #   codes 001, 002, and 003, which again makes perfect sense.
+    `ORISPL Code` == "55297" & `Unit Code` == "3" ~ "003",
+    `ORISPL Code` == "55297" & `Unit Code` == "1" ~ "001",
+    `ORISPL Code` == "55297" & `Unit Code` == "2" ~ "002",
+     TRUE ~ `Unit Code`)
+  )
+
+# # One last check to make sure that this two-part join now works
+# interped_data_regions |> 
+#   map2(nei_efs, anti_join, by = join_by(`ORISPL Code`, `Unit Code`)) |> 
+#   map2(
+#     nei_efs,
+#     anti_join,
+#     by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
+#   )
+
+### join -------
+# Then actually do the two-part join
+interped_data_regions <- interped_data_regions |> 
+  map2(nei_efs, left_join, by = join_by(`ORISPL Code`, `Unit Code`)) |> 
+  map2(
+    nei_efs,
+    left_join,
+    by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
+  )
+
+# We end up with duplicates of the three columns, one from the first join and
+#   one from the second. The columns will either have the same value, or
+#   one will be NA and the other will have the value. We combine them with
+#   coalesce, which takes the first non-NA value, and then remove them.
+interped_data_regions <- interped_data_regions |> 
+  map(~ mutate(
+    .x,
+    PM2.52023 = coalesce(PM2.52023.x, PM2.52023.y),
+    VOCs2023 = coalesce(VOCs2023.x, VOCs2023.y),
+    NH32023 = coalesce(NH32023.y, NH32023.x)
+  )) |> 
+  map(select,!c(
+    PM2.52023.x,
+    VOCs2023.x,
+    NH32023.x,
+    PM2.52023.y,
+    VOCs2023.y,
+    NH32023.y
+  ))
+
+# # Check to ensure there are no remaining NAs
+# interped_data_regions |> 
+#   map(select, PM2.52023:NH32023) |> 
+#   map(map, is.na) |> 
+#   map(map, sum)
+
+# We also now have two different Unit Code columns, Unit Code.x and Unit code.y.
+#   The first is from the RDF (after making the four corrections I made above
+#   by hand), the second is from the NEI. There are some cases where the first
+#   join fails because the RDF unit code is messed up. In all of these cases,
+#   the second join (using the unit name) succeeds. Thus, in these cases, the
+#   Unit Code.x and Unit Code.y columns will have different values, and we want
+#   to use the one from Unit Code.y. In other cases, the first join succeeds
+#   but the second join (using the unit name) fails because the unit names
+#   are different. In this case, Unit Code.y will be NA, but since the first
+#   join already worked, we can just take the unit code from the first join.
+# In sum: when neither Unit Code.x nor Unit Code.y are NA, but they have
+#   conflicting values, we want Unit Code.y. Where Unit Code.y is NA, we want
+#   Unit Code.x. (There should be no situations where Unit Code.x is NA, see
+#   code chunk immediately below.)
+
+# # Unit Code.x is never NA, Unit Code.y is sometimes NA
+# interped_data_regions |> 
+#   map(select, `Unit Code.x`, `Unit Code.y`) |>
+#   map(map, is.na) |>
+#   map(map, sum)
 
 
 
 
-# THIS is where u left off
 
 
 
 
 
 
+# LEFT OFF HERE!
 
-# DO A CHECK ON THE JOIN!
 
-# HERE'S WHERE you left join NEI EFs. Going to skip for now to just test
-#   basics. Here's what that code looks like in avertr:
-res_temp_bau <- res_list_bau |>
-  c(select(test_bau, `Full Unit Name`)) |>
-  as_tibble() |>
-  left_join(nei_efs, by = join_by(`Full Unit Name` == `Full Name`))
-
-res_temp_bau <- res_temp_bau |>
-  mutate(pm25.x = PM2.5...36 * heat.x,
-         vocs.x = VOCs...37 * heat.x,
-         nh3.x = NH3...38 * heat.x)
-
-res_list_bau <- res_temp_bau |>
-  select(!c(`Full Unit Name`, PM2.5...36:NH3...38)) |>
-  as.list()
+# TRY a case_when, if it's too slow figure something else out w coalesce
+interped_data_regions <- interped_data_regions |> 
+  map(select, !`Unit Code.x`) |> 
+  map(rename, `Unit Code` = `Unit Code.y`) |> 
+  map(relocate, `Unit Code`, .after = `ORISPL Code`)
 
 
 
@@ -434,24 +539,58 @@ res_list_bau <- res_temp_bau |>
 
 
 
+### calculate emissions ----------
+interped_data_regions <- interped_data_regions |> 
+  map(~ mutate(
+    .x,
+    data_pm25 = data_heat * PM2.52023,
+    data_voc = data_heat * VOCs2023,
+    data_nh3 = data_heat * NH32023
+  ))
 
 end_time <- Sys.time()
 time_taken <- end_time - start_time
 
 
-interped_data_regions[[7]]
 
+
+
+
+
+
+
+# Should be good! check these results against avertr.
 
 write_rds(interped_data_regions, "HIGHLYTEMPORARY_interped_data_regions.rds")
 
 
 
+interped_data_regions[[1]] |> head() |> view()
+
+interped_data_regions |> 
+  map(distinct, `Full Unit Name`) |> 
+  map(nrow)
+
+interped_data_regions |> 
+  map(distinct, `ORISPL Code`, `Unit Code`) |> 
+  map(nrow)
 
 
 
 
 
-write_rds(assigned_data_regions_selected_bau, "HIGHLYTEMPORARY_assigned_data_regions.rds")
+# Starting to worry more generally that units just aren't showing up at all...
+#   is this true? You should just do some simple checks on the number
+#   of units names at different points in this code, compare to number of
+#   unit names, from both nei and rdf.
+
+
+
+# AND do you join by unit name elsewhere? If so, be careful...
+# It think u do this in avertr, at the end where u test
+# THat's important! bc that wouldn't show in ur test, but it's a real concern.
+
+
 
 
 
@@ -466,83 +605,14 @@ write_rds(assigned_data_regions_selected_bau, "HIGHLYTEMPORARY_assigned_data_reg
 #   and making it compatible with this, fully commenting it out, etc. 4. Add a
 #   more official/standardized testing code. Maybe even make this a separate script?
 #   Whatever makes most sense. 4. Look into both A. removing so2 emission events
-#   units and B. how to deal with cases where we're in extreme load bins. Add
+#   units and B. how to deal with cases where we're in max or min load bins. 
+#   (Currently when this happens we just silently get an NA.) Add
 #   those features in while testing to ensure that you're doing it right. 5.
 #   git init. 6. Add better user input stuff (like maybe make a function, load
 #   in the different 8760s, etc.) 7. Consider best ways to present the output,
 #   other metrics you want to add (warnings for hours > 15%, number of hours and metrics on
 #   these hours, R^2, etc.) 8. Look into specifics of getting this on github, how
 #   to format, etc.
-
-
-
-
-
-
-
-
-# NOTE! You still have to deal with the issue of a unit being in the max
-#   load bin. In that case you'll just silently get an NA value.
-
-
-
-
-
-
-
-
-# Suppress printing on read_excel() new names?
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-expand_grid(region_egu_names[[1]], ff_load_bin_8760s_bau[[1]])
-
-
-ff_load_bin_data_final[[5]][[3]]
-
-
-assigned_data_bau <- 
-
-
-select(ff_load_bin_keys, 3)
-# NEXT STEP: get bau_load_hourly — prob just need to read it in for each 
-#   file above. BUT ALSO: first think of better, more consistnet namesd — why "hourly", why not 8760? etc.
-# Then we'll start to implement the "calculate new load bin" loop from
-#   avertr.
-
-# So you'll then have load_bin_keys_bau and bau_loads_hourly, which are each
-#   lists of length 14. You'll map2 through them, feeding them a function
-#   based on the for loop — so in total you'll do 14 for loops. You'll get back
-#   a list of length 14, one per region.
-
-
-
-
-
-
-
-# Get all the EGU names
-EGU_names_key <- generation_ff_load_bins |> 
-  pull(`Full Unit Name`)
-
-
-
-
-
 
 
 
