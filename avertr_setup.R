@@ -1,22 +1,19 @@
 # A script to generate files which get used in avertr.R. Specifically, it
-#   generates ff_load_bin_data_final.rds, a list of ADD HERE!!
-# Last edit: Joseph 04/30: Went back through, added comments
+#   generates 1. ff_load_bin_data_final.rds, a list of the unit data associated
+#   with different load bins, for each region, and 2. the bau_scenarios files,
+#   which contain information about the unit data in the business-as-usual
+#   load scenario, for each region.
 
-# Very general note: In this script, I make some moves which aren't extremely
-#   "safe" — mostly assuming that all data across different files is in the 
-#   same format. I do this because it makes things faster and simpler (e.g.,
-#   binding columns instead of joining) and because we have a uniquely good
-#   way to validate this script (namely, by comparing the output to AVERT) so
-#   it makes sense to sacrifice some "safety" for performance, since we have
-#   such a good QA/QC available.
+
+
+# START TIME ######
+# For tracking runtime
+start_time <- Sys.time()
 
 
 
 # SET UP ########
 rm(list = ls())
-
-# For tracking runtime
-start_time <- Sys.time()
 
 library(tidyverse)
 library(readxl)
@@ -237,6 +234,9 @@ ff_load_bin_data_final <- ff_load_bin_data_final |>
 
 # Save
 write_rds(ff_load_bin_data_final, "./avertr_setup_output/ff_load_bin_data_final.rds")
+
+# Also save cleaned NEI emission factors
+write_rds(nei_efs, "./avertr_setup_output/nei_efs.rds")
 
 
 
@@ -518,7 +518,7 @@ interped_data_regions <- interped_data_regions |>
     ),
     .after = `ORISPL Code`
   )) |> 
-  map(select, !c(`Unit Code.x`, `Unit Code.y`))
+  map(select, !c(`Unit Code.x`, `Unit Code.y`, `Full Name`))
 
 # # Check to ensure there are no remaining NAs
 # interped_data_regions |>
@@ -536,17 +536,26 @@ interped_data_regions <- interped_data_regions |>
   )) |> 
   map(select, !PM2.52023:NH32023)
 
+
+## Save BAU Results ========
+# These are the BAU scenarios for 2023
+write_rds(interped_data_regions, "bau_scenarios_2023.rds")
+
+# And here they are in 14 separate lists
+bau_results_paths <- map_chr(
+  region_names,
+  ~ str_c("./bau_scenarios/", .x, "_bau_scenario_2023.rds")
+)
+
+walk2(interped_data_regions, bau_results_paths, write_rds)
+
+
+
+# END TIME ########
 end_time <- Sys.time()
 time_taken <- end_time - start_time
 
-
-
-
-# as of 9:55pm on 5/5, I saved this. Should be ready to check. HOWEVER, you
-#   probably still want to 1. remove the Full Name column, 2. Either
-#   remove or at least relocate the ff_load_bin_next_col
-write_rds(interped_data_regions, "HIGHLYTEMPORARY_interped_data_regions.rds")
-
+time_taken
 
 
 
@@ -575,9 +584,5 @@ write_rds(interped_data_regions, "HIGHLYTEMPORARY_interped_data_regions.rds")
 #   other metrics you want to add (warnings for hours > 15%, number of hours and metrics on
 #   these hours, R^2, etc.) 8. Look into specifics of getting this on github, how
 #   to format, etc.
-
-
-
-
 
 
