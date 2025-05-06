@@ -432,6 +432,9 @@ rm(assigned_data_regions_selected_bau)
 # interped_anti_join |>
 #   pluck(5) |>
 #   distinct(`ORISPL Code`, `Unit Code`)
+#
+# # To save some memory
+# rm(interped_anti_join)
 
 # Correct the stragglers by hand
 interped_data_regions[[5]] <- interped_data_regions[[5]] |> 
@@ -448,8 +451,8 @@ interped_data_regions[[5]] <- interped_data_regions[[5]] |>
   )
 
 # # One last check to make sure that this two-part join now works
-# interped_data_regions |> 
-#   map2(nei_efs, anti_join, by = join_by(`ORISPL Code`, `Unit Code`)) |> 
+# interped_data_regions |>
+#   map2(nei_efs, anti_join, by = join_by(`ORISPL Code`, `Unit Code`)) |>
 #   map2(
 #     nei_efs,
 #     anti_join,
@@ -487,9 +490,9 @@ interped_data_regions <- interped_data_regions |>
   ))
 
 # # Check to ensure there are no remaining NAs
-# interped_data_regions |> 
-#   map(select, PM2.52023:NH32023) |> 
-#   map(map, is.na) |> 
+# interped_data_regions |>
+#   map(select, PM2.52023:NH32023) |>
+#   map(map, is.na) |>
 #   map(map, sum)
 
 # We also now have two different Unit Code columns, Unit Code.x and Unit code.y.
@@ -506,38 +509,22 @@ interped_data_regions <- interped_data_regions |>
 #   conflicting values, we want Unit Code.y. Where Unit Code.y is NA, we want
 #   Unit Code.x. (There should be no situations where Unit Code.x is NA, see
 #   code chunk immediately below.)
+interped_data_regions <- interped_data_regions |> 
+  map(~ mutate(
+    .x,
+    `Unit Code` = case_when(
+      is.na(`Unit Code.y`) ~ `Unit Code.x`,
+      TRUE ~ `Unit Code.y`
+    ),
+    .after = `ORISPL Code`
+  )) |> 
+  map(select, !c(`Unit Code.x`, `Unit Code.y`))
 
-# # Unit Code.x is never NA, Unit Code.y is sometimes NA
-# interped_data_regions |> 
-#   map(select, `Unit Code.x`, `Unit Code.y`) |>
+# # Check to ensure there are no remaining NAs
+# interped_data_regions |>
+#   map(select, `Unit Code`) |>
 #   map(map, is.na) |>
 #   map(map, sum)
-
-
-
-
-
-
-
-
-
-
-# LEFT OFF HERE!
-
-
-# TRY a case_when, if it's too slow figure something else out w coalesce
-interped_data_regions <- interped_data_regions |> 
-  map(select, !`Unit Code.x`) |> 
-  map(rename, `Unit Code` = `Unit Code.y`) |> 
-  map(relocate, `Unit Code`, .after = `ORISPL Code`)
-
-
-
-
-
-
-
-
 
 ### calculate emissions ----------
 interped_data_regions <- interped_data_regions |> 
@@ -546,7 +533,8 @@ interped_data_regions <- interped_data_regions |>
     data_pm25 = data_heat * PM2.52023,
     data_voc = data_heat * VOCs2023,
     data_nh3 = data_heat * NH32023
-  ))
+  )) |> 
+  map(select, !PM2.52023:NH32023)
 
 end_time <- Sys.time()
 time_taken <- end_time - start_time
@@ -554,43 +542,17 @@ time_taken <- end_time - start_time
 
 
 
-
-
-
-
-
-# Should be good! check these results against avertr.
-
+# as of 9:55pm on 5/5, I saved this. Should be ready to check. HOWEVER, you
+#   probably still want to 1. remove the Full Name column, 2. Either
+#   remove or at least relocate the ff_load_bin_next_col
 write_rds(interped_data_regions, "HIGHLYTEMPORARY_interped_data_regions.rds")
 
 
 
-interped_data_regions[[1]] |> head() |> view()
-
-interped_data_regions |> 
-  map(distinct, `Full Unit Name`) |> 
-  map(nrow)
-
-interped_data_regions |> 
-  map(distinct, `ORISPL Code`, `Unit Code`) |> 
-  map(nrow)
 
 
 
-
-
-# Starting to worry more generally that units just aren't showing up at all...
-#   is this true? You should just do some simple checks on the number
-#   of units names at different points in this code, compare to number of
-#   unit names, from both nei and rdf.
-
-
-
-# AND do you join by unit name elsewhere? If so, be careful...
-# It think u do this in avertr, at the end where u test
-# THat's important! bc that wouldn't show in ur test, but it's a real concern.
-
-
+# For style: Consider piping the .x within the maps to avoid the "))"
 
 
 
@@ -613,10 +575,6 @@ interped_data_regions |>
 #   other metrics you want to add (warnings for hours > 15%, number of hours and metrics on
 #   these hours, R^2, etc.) 8. Look into specifics of getting this on github, how
 #   to format, etc.
-
-
-
-
 
 
 
