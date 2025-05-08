@@ -30,7 +30,7 @@ project_type <- "offshore_wind"
 
 # DEFINE/LOAD OBJECTS ######
 # Hourly capacity factor; remove the 24 hours corresponding to 2/29
-capacity_factor_hourly <- read_excel(
+capacity_factor_8760 <- read_excel(
   "./avert-main-module-v4.3.xls",
   sheet = "EERE_Default",
   range = "AJ2:AJ8786"
@@ -52,125 +52,193 @@ datetime_8760 <- seq(
 # EVENTUALLY: save 14 versions, only load one
 nei_efs <- read_rds("./avertr_setup_output/nei_efs.rds")
 
-# EVENTUALLY: consider only loading in for the specific region
-ff_load_bin_data_final <- read_rds("./avertr_setup_output/ff_load_bin_data_final.rds")
+# EVENTUALLY: only loading in for the specific region
+ff_load_bin_data_final_region <- read_rds("./avertr_setup_output/ff_load_bin_data_final.rds")[[7]]
 
+# The BAU scenario results
+bau_scenario_region <- read_rds("./bau_scenarios/new-england_bau_scenario_2023.rds")
 
-
-# CALC NEW LOAD BINS #######
-# Based on the project, find the new ff load bins
+# This is the BAU load
+bau_load_8760 <- bau_scenario_region |> 
+  arrange(datetime_8760_col) |> 
+  distinct(datetime_8760_col, load_8760_col) |> 
+  pull(load_8760_col)
 
 # This is the hourly capacity
-capacity_hourly_mw <- capacity_factor_hourly * project_capacity_mw
+capacity_8760 <- capacity_factor_8760 * project_capacity
 
 # This is the new hourly net load
-new_load_hourly_mw <- bau_load_hourly_mw - capacity_hourly_mw
+new_load_8760 <- bau_load_8760 - capacity_8760
 
-# This is a vector containing the set of ff load bins for the reion
-ff_load_bins_key <- colnames(generation_ff_load_bins) |> 
-  as.numeric()
-
-# Remove NAs (note: do this more cleany, it's weird to coerce all names to 
-#   numeric and rely on conames being NA, better to just read all as character,
-#   filter w/ regexp OR even based on location (bc you knwo which cols you
-#   don't want to selec) and then convert to numeric)
-ff_load_bins_key <- ff_load_bins_key[!is.na(ff_load_bins_key)]
+# This is a vector containing the set of ff load bins for the region
+ff_load_bin_key <- ff_load_bin_data_final_region |>
+  distinct(ff_load_bin_col) |> 
+  pull(ff_load_bin_col)
 
 
+# BINNIFY #######
+# Based on the project, find the new ff load bins
 
+# NA vector for now, but will eventually store the "binnified" version of each
+#   vector from load_8760s_bau
+ff_load_bin_8760 <- rep(NA, 8760)
 
-
-# NA vector to store the new load bins for the net load of the region.
-ff_load_bins_8760_bau <- rep(NA, 8760)
-
-ff_load_bins_8760_bau_next <- rep(NA, 8760)
-
-# Calculate the new load bin
-for (i in 1:length(bau_load_hourly_mw)) {
-  diff <- bau_load_hourly_mw[i] - ff_load_bins_key
-  diff[diff < 0] <- NA # Bc of AVERT search alg, only grabs load bins BELOW the hourly load; here, diff is negative iff the given ff load bin is greater than hourly generation, but those cases are not considered matches in AVERT
-  current_load_bin_index <- which.min(diff)
-  ff_load_bins_8760_bau[i] <- ff_load_bins_key[current_load_bin_index]
-  ff_load_bins_8760_bau_next[i] <- ff_load_bins_key[current_load_bin_index + 1] # EVENTUALLY: The better way to do this is to make an 8760x2 matrix "next load bin library". The first col is ff_load_bins_key, the second is the first, shifted by 1. Then you just save to an array or something....although idk does really help runtime? The join is the issue...
+# This function binnifies the vector. Specifically, for each raw hourly load
+#   within load_8760s_bau, it finds the closest load bin which is less than or
+#   equal to the element. It does not simply find the closest load bin —
+#   it never matches to a higher load bin. This is because of the way that we
+#   do the interpolation below.
+binnify <- function(load_8760, ff_load_bin_key) {
+  
+  # For each hour of the year
+  for (i in 1:8760) {
+    
+    # Gives a vector containing the difference between raw load and each load
+    #   bin within the region.
+    diff <- load_8760[i] - ff_load_bin_key
+    
+    # Exclude all bins where the load bin exceeds the raw load
+    diff[diff < 0] <- NA
+    
+    # Find the smallest difference
+    bin_index <- which.min(diff)
+    
+    # The load bin with the smallest difference is our load bin in this slot
+    ff_load_bin_8760[i] <- ff_load_bin_key[bin_index]
+  }
+  return(ff_load_bin_8760)
 }
 
+ff_load_bin_8760 <- binnify(new_load_8760, ff_load_bin_key)
 
-# NA vector to store the new load bins for the net load of the region.
-ff_load_bins_8760 <- rep(NA, 8760)
+# Make the binned load into a tibble and bind it with a column for date time
+#   and a column for the raw load.
+ff_load_bin_8760 <- ff_load_bin_8760 |> 
+  as_tibble_col(column_name = "ff_load_bin_8760_col") |> 
+  bind_cols(
+    datetime_8760_col = datetime_8760,
+    load_8760_col = new_load_8760,
+  ) |> 
+  relocate(ff_load_bin_8760_col, .after = load_8760_col)
 
-ff_load_bins_8760_next <- rep(NA, 8760)
 
-# Calculate the new load bin
-for (i in 1:length(new_load_hourly_mw)) {
-  diff <- new_load_hourly_mw[i] - ff_load_bins_key
-  diff[diff < 0] <- NA
-  current_load_bin_index <- which.min(diff)
-  ff_load_bins_8760[i] <- ff_load_bins_key[current_load_bin_index]
-  ff_load_bins_8760_next[i] <- ff_load_bins_key[current_load_bin_index + 1]
+# ASSIGN DATA VALUES ##########
+# Now we join the data measures onto the appropriate load bins.
+assigned_data <- ff_load_bin_8760 |> 
+  left_join(
+    ff_load_bin_data_final_region,
+    by = join_by(ff_load_bin_8760_col == ff_load_bin_col)
+  )
+
+# # Check: there should be the same number of rows as in the bau scenario tibble
+# nrow(ff_load_bin_8760) == nrow(bau_scenario_region)
+
+
+
+# OZONE SEASON SPLIT =============
+# In each region, for each hour of the year, we have a data measure giving ozone
+#   season values and a data measure giving non-ozone season values (besides
+#   generation, which does not depend on the ozone season). But we only want the
+#   ozone season values for hours in the ozone season, and the non-ozone season
+#   values for values not in the ozone season.
+
+ozone_split <- function(assigned_data) {
+  
+  # These are the rows in the ozone season
+  oz <- assigned_data |> 
+    filter(
+      between(
+        datetime_8760_col,
+        ymd_hms("2023-05-01 00:00:00"),
+        ymd_hms("2023-09-30 23:00:00")
+      )
+    )
+  
+  # These are the rows not in the ozone season
+  non <- assigned_data |> 
+    anti_join(oz, by = join_by(datetime_8760_col))
+  
+  # For the rows in the ozone season, deselect the non-ozone season data
+  oz <- oz |> 
+    select(datetime_8760_col:data_next_bin_generation, contains("ozone")) |> 
+    # Rename so that we can easily bind rows below
+    rename_with(~ str_replace(., "_ozone", ""))
+  
+  # For the rows in the non-ozone season, deselect the ozone season data
+  non <- non |> 
+    select(datetime_8760_col:data_next_bin_generation, contains("non")) |> 
+    # Rename so that we can easily bind rows belo
+    rename_with(~ str_replace(., "_non", ""))
+  
+  assigned_data_ozoned <- bind_rows(oz, non)
+  
+  return(assigned_data_ozoned)
 }
 
-
-# ASSIGN VALUES ##########
-# We now have the 8760 for net load bin in each hour, after our new project.
-#   But we still need to, for each hour, based on the load bin, get the
-#   information on generation and pollutants. E.g., we know that net load was
-#   in the 2000 MW bin in hour 2293 in the region, but we don't know what generation, 
-#   so2 emissions, nox emissions, etc. each EGU has in the 2000 MW bin.
-
-# After reading functional programming section of advanced R, clean this up
-# Function takes a read-in df containing information about each EGU's activity
-#   at each load bin, and tidies it
-# AND RENAME this function
+assigned_data_selected <- ozone_split(assigned_data)
 
 
 
+# INTERPOLATE ##########
+# Now we interpolate the data. For each hour of the year, for each EGU, we
+#   have its data measure for the load bin and the next load bin. Recall that
+#   the raw generation value (for the EGU, for the hour) falls between the load
+#   bin and the next load bin. Thus, based on the raw generation value, we
+#   linearly interpolate between the two load bins.
+
+interpolate <- function(assigned_data) {
+  ff_load_bin_8760_bau <- pull(assigned_data, ff_load_bin_8760_col)
+  
+  ff_load_bin_8760_next_bau <- pull(assigned_data, ff_load_bin_next_col)
+  
+  load_8760_bau <- pull(assigned_data, load_8760_col)
+  
+  # The "metadata" here is the hour datetime, the raw load, and the load bin
+  metadata <- select(assigned_data, datetime_8760_col:ff_load_bin_next_col)
+  
+  current_data <- assigned_data |>
+    select(contains("data") & !contains("next"))
+  
+  next_data <- assigned_data |>
+    select(contains("data") & contains("next"))
+  
+  # This process comes directly from the AVERT macros code
+  interpolate_inner <- function(cd, nd) {
+    slope <- (cd - nd) / (ff_load_bin_8760_bau - ff_load_bin_8760_next_bau)
+    intercept <- cd - (slope * ff_load_bin_8760_bau)
+    val <- (load_8760_bau * slope) + intercept
+    return(val)
+  }
+  
+  # modify2 used because it returns a tibble (map2 would return a list)
+  interped_inner <- modify2(current_data, next_data, interpolate_inner)
+  
+  interped_inner <- bind_cols(metadata, interped_inner)
+  
+  return(interped_inner)
+  
+}
+
+interped_data_regions <- interpolate(assigned_data_selected)
 
 
 
-
-
-# 4/12, 4pm: Joey. Here are the next steps.
-# First, in order to get the function below working with only a single join,
-#   you should simply remove colnm argument from it so that you can determinately
-#   pick out the column in order to lead() it, to get the next value. (Additionally,
-#   it might be worth putting a check on that col somewhere in the code
-#   to make sure it's in ascending order. It def is, but still.) Then use a
-#   map() later to rename it. After all that, you can remove the second join()
-#   in the loop. Oh, and change that loop to a purrr functional, like walk() at least.
-# Second, AND YOU MAY WANT TO DO THIS FIRST: it's time to start re-arragning
-#   and documenting. I think it makes sense to have a sheet where you load
-#   a bunch of standard objects for the different scenarios and save them as
-#   r data files. I'd do that now. Namely, you'll want like a list for
-#   each region, maybe other info idk. Start doing that now, and then put it
-#   into one script later. You should also move that concern abt the day being
-#   off into another section of the script.
+# ADD PM2.5, VOCs, NH3 #######
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# GET DIFFERENCES #######
 
 
 
 
-eval(iris)
 
-as.character(iris)
+
+
+
+
+
+
 
 
 
@@ -470,9 +538,6 @@ tt <- final_changes |> summarize(
 
 # Recall that you can open up macros and compile if you need to,
 #   add breakpoints, and then hover over variable names to get the values.
-#    
-
-
 
 
 

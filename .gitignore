@@ -13,3 +13,7 @@ avertr_setup_output
 regional_data_files
 
 test_scenarios
+
+bau_scenarios
+
+bau_scenarios_2023.rds
