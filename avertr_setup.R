@@ -6,6 +6,11 @@
 
 
 
+# CLEAR ENVIRONMENT #######
+rm(list = ls())
+
+
+
 # START TIME ######
 # For tracking runtime
 start_time <- Sys.time()
@@ -13,8 +18,6 @@ start_time <- Sys.time()
 
 
 # SET UP ########
-rm(list = ls())
-
 library(tidyverse)
 library(readxl)
 
@@ -507,8 +510,7 @@ interped_data_regions <- interped_data_regions |>
 #   join already worked, we can just take the unit code from the first join.
 # In sum: when neither Unit Code.x nor Unit Code.y are NA, but they have
 #   conflicting values, we want Unit Code.y. Where Unit Code.y is NA, we want
-#   Unit Code.x. (There should be no situations where Unit Code.x is NA, see
-#   code chunk immediately below.)
+#   Unit Code.x. (There should be no situations where Unit Code.x is NA.)
 interped_data_regions <- interped_data_regions |> 
   map(~ mutate(
     .x,

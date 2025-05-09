@@ -4,6 +4,11 @@
 
 
 
+# CLEAR ENVIRONMENT ######
+rm(list = ls())
+
+
+
 # START TIME ######
 # For tracking runtime
 start_time <- Sys.time()
@@ -11,8 +16,6 @@ start_time <- Sys.time()
 
 
 # SET UP ########
-rm(list = ls())
-
 library(tidyverse)
 library(readxl)
 
@@ -50,7 +53,7 @@ datetime_8760 <- seq(
 
 # NEI emission factors (cleaned in avertr_setup)
 # EVENTUALLY: save 14 versions, only load one
-nei_efs <- read_rds("./avertr_setup_output/nei_efs.rds")
+nei_efs_region <- read_rds("./avertr_setup_output/nei_efs.rds")[[7]]
 
 # EVENTUALLY: only loading in for the specific region
 ff_load_bin_data_final_region <- read_rds("./avertr_setup_output/ff_load_bin_data_final.rds")[[7]]
@@ -224,299 +227,121 @@ interped_data_regions <- interpolate(assigned_data_selected)
 
 
 # ADD PM2.5, VOCs, NH3 #######
+# Data got entering incorrectly into the RDFs, so we need to join twice and then
+#   manually correct the Unit Code column. See avertr_setup.R for full details on
+#   this issue.
 
+# # Check: This should return a tibble with 0 rows.
+# interped_data_regions |>
+#   anti_join(nei_efs_region, by = join_by(`ORISPL Code`, `Unit Code`)) |>
+#   anti_join(
+#     nei_efs_region,
+#     by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
+#   )
+
+# # Mid-atlantic needs to have a few values manually corrected upfront. Again, see
+# #   avertr_setup.R for full details.
+# if (region == "mid-atlantic") {
+#   interped_data_regions <- interped_data_regions |> 
+#     mutate(`Unit Code` = case_when(
+#       # In NEI EFs sheet, only one unit with ORISPL 50611. It's unit code is
+#       #   listed as 031, which makes perfect sense.
+#       `ORISPL Code` == "50611" & `Unit Code` == "31" ~ "031",
+#       # In NEI EFs sheetm exactly three units with ORISPL 55297. They have unit
+#       #   codes 001, 002, and 003, which again makes perfect sense.
+#       `ORISPL Code` == "55297" & `Unit Code` == "3" ~ "003",
+#       `ORISPL Code` == "55297" & `Unit Code` == "1" ~ "001",
+#       `ORISPL Code` == "55297" & `Unit Code` == "2" ~ "002",
+#       TRUE ~ `Unit Code`)
+#     )
+# }
+
+# Join
+interped_data_regions <- interped_data_regions |> 
+  left_join(nei_efs_region, by = join_by(`ORISPL Code`, `Unit Code`)) |> 
+  left_join(
+    nei_efs_region,
+    by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
+  )
+
+# Fix duplicate data columns
+interped_data_regions <- interped_data_regions |> 
+  mutate(
+    PM2.52023 = coalesce(PM2.52023.x, PM2.52023.y),
+    VOCs2023 = coalesce(VOCs2023.x, VOCs2023.y),
+    NH32023 = coalesce(NH32023.y, NH32023.x)
+  ) |> 
+  select(
+    !c(PM2.52023.x, VOCs2023.x, NH32023.x, PM2.52023.y, VOCs2023.y, NH32023.y)
+  )
+
+# Fix unit code column
+interped_data_regions <- interped_data_regions |> 
+  mutate(
+    `Unit Code` = case_when(
+      is.na(`Unit Code.y`) ~ `Unit Code.x`,
+      TRUE ~ `Unit Code.y`
+    ),
+    .after = `ORISPL Code`
+  ) |> 
+  select(!c(`Unit Code.x`, `Unit Code.y`, `Full Name`))
+
+# # Check to ensure there are no remaining NAs
+# interped_data_regions |>
+#   select(`Unit Code`) |>
+#   is.na() |>
+#   sum()
+
+# Calculate emissions
+interped_data_regions <- interped_data_regions |> 
+  mutate(
+    data_pm25 = data_heat * PM2.52023,
+    data_voc = data_heat * VOCs2023,
+    data_nh3 = data_heat * NH32023
+  ) |> 
+  select(!PM2.52023:NH32023)
 
 
 # GET DIFFERENCES #######
+# # Test: if we've done everything right, the "metadata" for these two files
+# #   should be identical:
+# interped_data_regions_metadata <- interped_data_regions |> 
+#   select(c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
+# 
+# bau_scenario_region_metadata <- bau_scenario_region |> 
+#   select(c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
+# 
+# all.equal(interped_data_regions_metadata, bau_scenario_region_metadata)
 
+differences_final_metadata <- interped_data_regions |> 
+  select(c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
 
+interped_data_regions_data <- interped_data_regions |> 
+  select(!c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
 
+bau_scenario_region_data <- bau_scenario_region |> 
+  select(!c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
 
+# # Check: Verify that column names are in the same order
+# sum(names(interped_data_regions_data) != names(bau_scenario_region_data))
 
-
-
-
-
-
-
-
-
-
-join_data <- function(x_ff_load_bins, colnm) {
-  colnm_sym <- sym(colnm)
-  x_ff_load_bins <- x_ff_load_bins |> 
-    pivot_longer(
-      any_of(as.character(ff_load_bins_key)),
-      names_to = "ff_load_bins_8760",
-      values_to = colnm) |> 
-    mutate(
-      ff_load_bins_8760 = as.numeric(ff_load_bins_8760)
-      # nextnum = lead(!!colnm_sym),
-      # nextnum = case_when( # When the load bin is as high as it can go, there's no "next" load bin. lead() pulls in the lowest load bin, but it shouldn't
-      #   ff_load_bins_8760 == max(ff_load_bins_key) ~ NA,
-      #   TRUE ~ nextnum
-      #)
-    )
-  return(x_ff_load_bins) # This returns a df which has a row for each unit for each load bin.
-}
-
-# Get all the EGU names
-EGU_names_key <- generation_ff_load_bins |> 
-  pull(`Full Unit Name`)
-
-# In each df, select only relevant cols
-ff_load_bins_list <- ff_load_bins_list |> 
-  map(~select(., !(State:`Unit Code`)))
-
-# Apply the above tidying function
-ff_load_bins_list <- ff_load_bins_list |> 
-  map2(names(ff_load_bins_list), ~join_data(.x, .y))
-
-
-## BAU Scenario =========
-# This is the information for the BAU scenario — the one where there's no load
-#   difference
-
-# Take Cartesian product of ff_load_bins and EGU names. So we end up with
-#    a row for each EGU name-load bin pair
-test_bau <- expand.grid(
-  ff_load_bins_8760_bau = ff_load_bins_8760_bau, # Change this ot have a name analogous to ff_load_bins, etc. OR maybe just don't change name at all?
-  `Full Unit Name` = EGU_names_key
-) |> 
-  as_tibble() |> 
-  add_column(datetime = rep(datetime_8760, length(EGU_names_key)),
-             ff_load_bins_8760_bau_next = rep(ff_load_bins_8760_bau_next, length(EGU_names_key)),
-             bau_load_hourly_mw = rep(bau_load_hourly_mw, length(EGU_names_key)))
-
-
-
-# Eventually: might be best to save the ff load bin index directly, rather than
-#   calculate load bin so early on
-# Use the load bin col and the ff_load_bins_key to find the next load bin.
-# Do the join twice: once for the current load bin, and once for the next
-#   load bin. (What if you're in the max load bin? Shouldn't happen. You only get
-#   into a load bin if true load is above it, and if true load is above the max
-#   load bin, it shouldn't run.)
-# Take the difference in the two values across the load bins, divide by the difference
-#   in the two load bins. That's slope.
-# Backfit for intercept
-#   Calculate value.
-
-# FOR NOW you're not worry abt cases where you have a load bin as max load, but
-#   eventually you need to add that functionality, since someone could run a 
-#   scenario like that.
-
-# This is the biggest slowdown w the current algo: you join twice, even though
-#   after the first join you can easily determine what the second join should be,
-#   simply based on the matrix location of the values. Maybe best way is to only
-#   load in index values in the above for loop, and then just literally index each
-#   table in the ff_load_bins_list?
-for (i in 1:length(ff_load_bins_list)) {
-  test_bau <- test_bau |> 
-    left_join(ff_load_bins_list[[i]], by = join_by(ff_load_bins_8760_bau == ff_load_bins_8760, `Full Unit Name`)) |> 
-    left_join(ff_load_bins_list[[i]], by = join_by(ff_load_bins_8760_bau_next == ff_load_bins_8760, `Full Unit Name`))
-}
-
-
-
-# Rename columns
-test_bau <- test_bau |>
-  rename_with(
-    .fn = ~str_remove(., "_ff_load_bins"),
-    .cols = !c(ff_load_bins_8760_bau:`Full Unit Name`)
+differences_final <- interped_data_regions_data |> 
+  map2(bau_scenario_region_data, ~ .x - .y) |> 
+  bind_cols(differences_final_metadata) |> 
+  relocate(
+    c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`),
+    .before = 1
   )
 
+# Need to clarify rounding, if/how different between NEI and CAMD
+differences_final <- differences_final |> 
+  mutate(across(c(data_so2, data_nox, data_co2), ~ round(.x, 6)) )
 
 
-## Alt Scenario =========
-# Take Cartesian product of ff_load_bins and EGU names. So we end up with
-#    a row for each EGU name-load bin pair
-test <- expand.grid(
-  ff_load_bins_8760 = ff_load_bins_8760,
-  `Full Unit Name` = EGU_names_key
-) |> 
-  as_tibble() |> 
-  add_column(datetime = rep(datetime_8760, length(EGU_names_key)),
-             ff_load_bins_8760_next = rep(ff_load_bins_8760_next, length(EGU_names_key)),
-             new_load_hourly_mw = rep(new_load_hourly_mw, length(EGU_names_key)))
 
-
-
-
-
-
-# join on relevant values
-for (i in 1:length(ff_load_bins_list)) {
-  test <- test |> 
-    left_join(ff_load_bins_list[[i]], by = join_by(ff_load_bins_8760, `Full Unit Name`)) |> 
-    left_join(ff_load_bins_list[[i]], by = join_by(ff_load_bins_8760_next == ff_load_bins_8760, `Full Unit Name`))
-}
-
-
-
-
-
-# Rename columns
-test <- test |>
-  rename_with(
-    .fn = ~str_remove(., "_ff_load_bins"),
-    .cols = !c(ff_load_bins_8760:`Full Unit Name`)
-  )
-
-# OZONE SEASON SPLIT #############
-# Split up into ozone season and not. As per AVERT documentation, ozone season is
-#   May to September inclusive.
-test_ozone <- test |>
-  filter(between(datetime, ymd_hms("2012-05-01 00:00:00"), ymd_hms("2012-09-30 23:00:00")))
-
-test_non <- test |>
-  anti_join(test_ozone, by = join_by(datetime))
-
-# # Check:
-# nrow(test_ozone) + nrow(test_non) == nrow(test)
-# intersect(test_ozone$datetime, test_non$datetime)
-
-test_ozone <- test_ozone |> 
-  select(ff_load_bins_8760:generation.y, contains("ozone")) |> 
-  rename_with(~str_replace(., "_ozone", ""))
-
-test_non <- test_non |> 
-  select(ff_load_bins_8760:generation.y, !contains("ozone")) |> 
-  rename_with(~str_replace(., "_non", ""))
-
-test <- test_ozone |> 
-  bind_rows(test_non)
-
-# end.time <- Sys.time()
-# time.taken <- end.time - start.time
-  
-
-
-
-
-
-
-
-
-test_bau_ozone <- test_bau |>
-  filter(between(datetime, ymd_hms("2012-05-01 00:00:00"), ymd_hms("2012-09-30 23:00:00")))
-
-test_bau_non <- test_bau |>
-  anti_join(test_bau_ozone, by = join_by(datetime))
-
-# # Check:
-# nrow(test_bau_ozone) + nrow(test_bau_non) == nrow(test_bau)
-# intersect(test_bau_ozone$datetime, test_bau_non$datetime)
-
-test_bau_ozone <- test_bau_ozone |> 
-  select(ff_load_bins_8760_bau:generation.y, contains("ozone")) |> 
-  rename_with(~str_replace(., "_ozone", ""))
-
-test_bau_non <- test_bau_non |> 
-  select(ff_load_bins_8760_bau:generation.y, !contains("ozone")) |> 
-  rename_with(~str_replace(., "_non", ""))
-
-test_bau <- test_bau_ozone |> 
-  bind_rows(test_bau_non)
-
-
-# INTERPOLATION #########
-get_val_bau <- function(current_bin, next_bin) {
-  slope <- (current_bin - next_bin) / (test_bau$ff_load_bins_8760_bau - test_bau$ff_load_bins_8760_bau_next)
-  intercept <- current_bin - (slope * test_bau$ff_load_bins_8760_bau)
-  val <- (test_bau$bau_load_hourly_mw * slope) + intercept
-  return(val)
-}
-
-current_load_bin_vals_bau <- test_bau |> 
-  select(contains(".x")) |> 
-  as.list()
-
-next_load_bin_vals_bau <- test_bau |> 
-  select(contains(".y")) |> 
-  as.list()
-
-res_list_bau <- map2(current_load_bin_vals_bau, next_load_bin_vals_bau, get_val_bau)
-
-res_temp_bau <- res_list_bau |>
-  c(select(test_bau, `Full Unit Name`)) |> 
-  as_tibble() |> 
-  left_join(nei_efs, by = join_by(`Full Unit Name` == `Full Name`))
-
-res_temp_bau <- res_temp_bau |> 
-  mutate(pm25.x = PM2.5...36 * heat.x,
-         vocs.x = VOCs...37 * heat.x,
-         nh3.x = NH3...38 * heat.x)
-
-res_list_bau <- res_temp_bau |> 
-  select(!c(`Full Unit Name`, PM2.5...36:NH3...38)) |> 
-  as.list()
-
-
-
-# CHECK AVERT CODE for how they do this...
-
-
-
-
-
-
-get_val <- function(current_bin, next_bin) { # EVENTUALLY: seems best to just have one get_val function, with three additional arguments for the three specific cols, OR you can name the cols the same across test and test_bau, and just pass one additional argument for the df...
-  slope <- (current_bin - next_bin) / (test$ff_load_bins_8760 - test$ff_load_bins_8760_next)
-  intercept <- current_bin - (slope * test$ff_load_bins_8760)
-  val <- (test$new_load_hourly_mw * slope) + intercept
-  return(val)
-}
-
-current_load_bin_vals <- test |> 
-  select(contains(".x")) |> 
-  as.list()
-
-next_load_bin_vals <- test |> 
-  select(contains(".y")) |> 
-  as.list()
-
-res_list <- map2(current_load_bin_vals, next_load_bin_vals, get_val)
-
-res_temp <- res_list |>
-  c(select(test, `Full Unit Name`)) |> 
-  as_tibble() |> 
-  left_join(nei_efs, by = join_by(`Full Unit Name` == `Full Name`))
-
-res_temp <- res_temp |> 
-  mutate(pm25.x = PM2.5...36 * heat.x,
-         vocs.x = VOCs...37 * heat.x,
-         nh3.x = NH3...38 * heat.x)
-
-res_list <- res_temp |> 
-  select(!c(`Full Unit Name`, PM2.5...36:NH3...38)) |> 
-  as.list()
-
-
-
-qt <- read_rds("bau_scenarios_2023.rds")
-
-set.seed(50)
-qt[[7]] |> arrange(data_generation, data_so2, data_nox) |> sample_n(100) |> view()
-
-set.seed(50)
-res_list_bau |> bind_cols() |> arrange(generation.x, so2.x, nox.x) |> sample_n(100) |> view()
-
-# Eventually: you'll want to split this up into two steps: just find raw
-#   differences, then round some to 3, some to 6
-changes <- map2(res_list, res_list_bau, function(.x, .y) round(.x - .y, 6))
-
-
-final_changes <- test |> 
-  select(ff_load_bins_8760:new_load_hourly_mw) |> 
-  add_column(bind_cols(changes))
-
-
-tt <- final_changes |> summarize(
-  across(generation.x:nh3.x, sum),
-  .by = `Full Unit Name`
-)
-
+# END TIME ########
+end_time <- Sys.time()
+time_taken <- end_time - start_time
 
 
 
