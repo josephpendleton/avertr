@@ -85,7 +85,7 @@ test_errors <- test_joined |>
 # Summary table of the errors between AVERT and avertr. Note that percent
 #   errors may be NA where the AVERT value is 0
 test_errors |> 
-  select(contain("error")) |> 
+  select(contains("error")) |> 
   summary()
 
 # Largest absolute percent error from each measure
@@ -156,9 +156,35 @@ test_errors_total |>
 
 # Also, take another look at how exactly the rounding is done in AVERT. Is heat
 #   rounded first before its used to estimate NEI emissions?
+# Okay: Looks like heat gets rounded to 3, and then that rounded value is multiplied
+#   by the unrounded NEI values, and then the result is immediately rounded to 6.
+# I think you need to start going thru AVERT, add breakpoints, understand what the pre and post PM thing
+#   is, what those values end up being, etc.
+
+
+# Ok, as of 5/12, 5pm: looks like heat difference is calculated and rounded to 3, like everything else. Then, it's
+#   put in the HeatInput sheet. So the HeatInput sheet is full of heat differences between the BAU and current scenario,
+#   for each plant, for ecah hour (and they've all been rounded to 3 (they're rounded after the differece is taken, I think)). Then, you take each difference, and multiply it
+#   by the corresponding (unrounded) NEI emissions rate, and round that to 6. This gives you change in NEI emissions.
+
+# Independently, the pre PM (and pre NH3 and pre VOC) is calculated by multiplying the emissions rate by the original
+#   (rounded to 3) heat rate, and then rounding that resulting product to 6.
+
+# And then the post PM (and NH3, VOC) is calculated by taking the pre PM and adding the change in PM to it.
+
+
+
+
 
 # And while you're at it, how does AVERT do ITS OWN unit matching if the data
 #   is inconsistent? Look into the code
+
+
+
+
+
+# Reminder: maybe add some of those join safety mechanisms in the join in
+#   avertr_test to avertr and avertr_setup
 
 
 
