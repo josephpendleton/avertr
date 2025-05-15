@@ -293,36 +293,57 @@ interped_data_regions <- interped_data_regions |>
 #   is.na() |>
 #   sum()
 
-# Calculate emissions
-interped_data_regions <- interped_data_regions |> 
-  mutate(
-    data_pm25 = data_heat * PM2.52023,
-    data_voc = data_heat * VOCs2023,
-    data_nh3 = data_heat * NH32023
-  ) |> 
-  select(!PM2.52023:NH32023)
-
 
 
 # GET DIFFERENCES #######
 # # Test: if we've done everything right, the "metadata" for these two files
 # #   should be identical:
-# interped_data_regions_metadata <- interped_data_regions |> 
+# interped_data_regions_metadata <- interped_data_regions |>
 #   select(c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
 # 
-# bau_scenario_region_metadata <- bau_scenario_region |> 
+# bau_scenario_region_metadata <- bau_scenario_region |>
 #   select(c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
 # 
 # all.equal(interped_data_regions_metadata, bau_scenario_region_metadata)
 
 differences_final_metadata <- interped_data_regions |> 
-  select(c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
+  select(
+    c(
+      datetime_8760_col,
+      `ORISPL Code`,
+      `Unit Code`,
+      `Full Unit Name`,
+      PM2.52023,
+      VOCs2023,
+      NH32023
+    )
+  )
 
 interped_data_regions_data <- interped_data_regions |> 
-  select(!c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
+  select(
+    !c(
+      datetime_8760_col,
+      `ORISPL Code`,
+      `Unit Code`,
+      `Full Unit Name`,
+      PM2.52023,
+      VOCs2023,
+      NH32023
+    )
+  )
 
 bau_scenario_region_data <- bau_scenario_region |> 
-  select(!c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
+  select(
+    !c(
+      datetime_8760_col,
+      `ORISPL Code`,
+      `Unit Code`,
+      `Full Unit Name`,
+      data_pm25,
+      data_voc,
+      data_nh3
+    )
+  )
 
 # # Check: Verify that column names are in the same order
 # sum(names(interped_data_regions_data) != names(bau_scenario_region_data))
@@ -335,11 +356,17 @@ differences_final <- interped_data_regions_data |>
     .before = 1
   )
 
-# As per AVERT macros code, CAMD emissions rounded to 3, NEI emissions to 6. Not
-#   sure why!
 differences_final <- differences_final |> 
-  mutate(across(c(data_generation:data_heat), ~ round(.x, 3))) |> 
-  mutate(across(c(data_pm25, data_voc, data_nh3), ~ round(.x, 6)))
+  mutate(across(c(data_generation:data_heat), ~ round(.x, 3)))
+
+# Add NEI emissions
+differences_final <- differences_final |> 
+  mutate(data_pm25 = data_heat * PM2.52023,
+         data_voc = data_heat * VOCs2023,
+         data_nh3 = data_heat * NH32023)
+
+differences_final <- differences_final |> 
+  mutate(across(data_pm25:data_nh3, ~ round(.x, 6)))
 
 
 
