@@ -307,43 +307,13 @@ interped_data_regions <- interped_data_regions |>
 # all.equal(interped_data_regions_metadata, bau_scenario_region_metadata)
 
 differences_final_metadata <- interped_data_regions |> 
-  select(
-    c(
-      datetime_8760_col,
-      `ORISPL Code`,
-      `Unit Code`,
-      `Full Unit Name`,
-      PM2.52023,
-      VOCs2023,
-      NH32023
-    )
-  )
+  select(c(datetime_8760_col:ff_load_bin_next_col, PM2.52023:NH32023))
 
 interped_data_regions_data <- interped_data_regions |> 
-  select(
-    !c(
-      datetime_8760_col,
-      `ORISPL Code`,
-      `Unit Code`,
-      `Full Unit Name`,
-      PM2.52023,
-      VOCs2023,
-      NH32023
-    )
-  )
+  select(!c(datetime_8760_col:ff_load_bin_next_col, PM2.52023:NH32023))
 
 bau_scenario_region_data <- bau_scenario_region |> 
-  select(
-    !c(
-      datetime_8760_col,
-      `ORISPL Code`,
-      `Unit Code`,
-      `Full Unit Name`,
-      data_pm25,
-      data_voc,
-      data_nh3
-    )
-  )
+  select(!c(datetime_8760_col:ff_load_bin_next_col, data_pm25:data_nh3))
 
 # # Check: Verify that column names are in the same order
 # sum(names(interped_data_regions_data) != names(bau_scenario_region_data))
@@ -352,7 +322,7 @@ differences_final <- interped_data_regions_data |>
   map2(bau_scenario_region_data, ~ .x - .y) |> 
   bind_cols(differences_final_metadata) |> 
   relocate(
-    c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`),
+    c(datetime_8760_col:ff_load_bin_next_col, PM2.52023:NH32023),
     .before = 1
   )
 
