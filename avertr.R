@@ -174,7 +174,8 @@ ozone_split <- function(assigned_data) {
     # Rename so that we can easily bind rows belo
     rename_with(~ str_replace(., "_non", ""))
   
-  assigned_data_ozoned <- bind_rows(oz, non)
+  assigned_data_ozoned <- bind_rows(oz, non) |> 
+    arrange(datetime_8760_col)
   
   return(assigned_data_ozoned)
 }

@@ -232,7 +232,6 @@ avert_unit_differences_final <- avert_unit_differences_final |>
 
 # Bind avertr differences with the AVERT differences we just wrangled
 test_joined_hourly <- differences_final |> 
-  arrange(datetime_8760_col) |> 
   bind_cols(avert_unit_differences_final)
 
 # # Check to make sure the units are the same. Unit codes won't match because the
@@ -290,12 +289,6 @@ test_errors_hourly |>
 
 
 
-
-
-
-
-# You just need to sort the data by datetime like way earlier on, ideally in
-#   avertr itself.
 
 
 
