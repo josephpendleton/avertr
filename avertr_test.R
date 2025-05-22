@@ -15,11 +15,21 @@ source("./avertr.R")
 
 
 
+# RUN ###########
+differences_final <- avert(
+  project_capacity = 500,
+  project_region = "New York",
+  project_year = "2023",
+  project_type = "Offshore Wind"
+)
+
+
+
 # ASSIGN FILEPATH ##########
 # Enter the filepath to the AVERT main module workbook (converted from its
 #   default .xlsb format to either .xls or .xlsx) where you've run the scenario
 #   that you wish to test avertr.R's output against
-avert_run_filepath <- "./test_scenarios/500MW_OSW_NE_04012205.xls"
+avert_run_filepath <- "./test_scenarios/500MW_OSW_NY_05222025.xlsx"
 
 
 # LOAD OBJECTS ######
@@ -27,7 +37,7 @@ avert_run_filepath <- "./test_scenarios/500MW_OSW_NE_04012205.xls"
 # NOTE: Replace w more robust range value
 avert_differences_final <- read_excel(avert_run_filepath,
                                       sheet = "Summary",
-                                      range = "C7:AA123") |> 
+                                      range = "C7:AA196") |> 
   mutate(`ORSPL (Plant ID)` = as.character(`ORSPL (Plant ID)`))
 
 
@@ -180,7 +190,7 @@ avert_unit_differences_final_plant_info <- data_measure_sheet_names |>
     ~ read_excel(
       avert_run_filepath,
       sheet = .x,
-      range = "L1:DW3", # EVENTUALLY: find more robust way to set range.
+      range = "L1:GR3", # EVENTUALLY: find more robust way to set range.
       col_names = FALSE
     )
   ) |> 
@@ -194,7 +204,7 @@ avert_unit_differences_final <- data_measure_sheet_names |>
     ~ read_excel(
       avert_run_filepath,
       sheet = .x,
-      range = "L4:DW8763",
+      range = "L4:GR8763",
       col_names = .y
     )
   )
