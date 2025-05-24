@@ -18,4 +18,8 @@ test_scenarios
 
 bau_scenarios
 
+ff_load_bin_data
+
+nei_efs
+
 bau_scenarios_2023.rds

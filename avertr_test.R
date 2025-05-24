@@ -3,27 +3,25 @@
 
 
 
-# CLEAR ENVIRONMENT #######
-rm(list = ls())
-
-
-
 # SET UP ########
-# Assumes you have augmented avertr.R by specifying your desired region and
+# Assumes you have altered avertr.R by specifying your desired region and
 #   load change
 source("./avertr.R")
 
 
 
+
 # RUN ###########
-differences_final <- avert(
+avertred <- avert(
   project_capacity = 500,
   project_region = "New York",
   project_year = "2023",
   project_type = "Offshore Wind"
 )
 
+avertred$signal_to_noise
 
+differences_final <- avertred$differences_final
 
 # ASSIGN FILEPATH ##########
 # Enter the filepath to the AVERT main module workbook (converted from its
@@ -105,9 +103,10 @@ test_errors |>
   select(contains("error")) |> 
   summary()
 
-# Largest absolute percent error from each measure
+# Largest absolute error from each measure. (Note that the pct error
+#   and error for each data measure may come from different rows.)
 test_errors |> 
-  select(contains("pct")) |> 
+  select(contains("error")) |> 
   mutate(across(everything(), abs)) |> 
   summarize(across(everything(), ~ max(.x, na.rm = TRUE))) |> 
   print(width = Inf)
@@ -280,9 +279,10 @@ test_errors_hourly |>
   select(contains("error")) |> 
   summary()
 
-# Largest absolute percent error from each measure
+# Largest absolute error from each measure. (Note that the pct error
+#   and error for each data measure may come from different rows.)
 test_errors_hourly |> 
-  select(contains("pct")) |> 
+  select(contains("error")) |> 
   mutate(across(everything(), abs)) |> 
   summarize(across(everything(), ~ max(.x, na.rm = TRUE))) |> 
   print(width = Inf)
@@ -296,29 +296,5 @@ test_errors_hourly |>
 test_errors_hourly |> 
   mutate(across(contains("pct"), abs)) |> 
   filter(if_any(contains("pct"), \(x) x > 0.1))
-
-
-
-
-
-
-
-# Also variable naming needs to be way less bad in this script.
-
-# And check for consistency across the three tesing scetions
-
-
-
-
-# How does AVERT do ITS OWN unit matching if the data
-#   is inconsistent? Look into the code
-
-
-
-
-
-# Reminder: maybe add some of those join safety mechanisms in the join in
-#   avertr_test to avertr and avertr_setup
-
 
 

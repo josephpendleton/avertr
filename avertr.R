@@ -4,18 +4,47 @@
 
 
 
+# SET UP ########
+library(tidyverse)
+library(readxl)
+library(tidyxl)
+library(unpivotr)
+
+
+
 avert <- function(project_year, project_region, project_type, project_capacity,
-                  hourly_load_reduction = NULL) {
-  
-  # SET UP ########
-  library(tidyverse)
-  library(readxl)
-  library(tidyxl)
-  library(unpivotr)
-  
-  
+                  hourly_load_reduction = NULL, load_bin_data_filepath = NULL,
+                  bau_scenario_filepath = NULL, nei_efs_filepath = NULL) {
   
   # DEFINE/LOAD OBJECTS ######
+  
+  
+  # EVENTUALLY: only loading in for the specific region
+  
+  if (is.null(load_bin_data_filepath)) {
+    load_bin_data_filepath <- paste0("./ff_load_bin_data/", project_year, "/", project_region, "_ff_load_bin_data_", project_year, ".rds")
+  }
+  
+  ff_load_bin_data_final_region <- read_rds(load_bin_data_filepath)
+  
+  
+  # The BAU scenario results
+  if (is.null(bau_scenario_filepath)) {
+    bau_scenario_filepath <- paste0("./bau_scenarios/", project_year, "/", project_region, "_bau_scenarios_", project_year, ".rds")
+  }
+  
+  bau_scenario_region <- read_rds(bau_scenario_filepath)
+  
+  # NEI emission factors
+  if (is.null(nei_efs_filepath)) {
+    nei_efs_filepath <- paste0("./nei_efs/", project_year, "/", project_region, "_nei_efs_", project_year, ".rds")
+  }
+  
+  nei_efs_region <- read_rds(nei_efs_filepath)
+  
+  
+  
+  
   
   # This is simply a vector of each hour of the year 2023
   datetime_8760 <- seq(
@@ -24,11 +53,6 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     length.out = 8760
   )
   
-  # EVENTUALLY: only loading in for the specific region
-  ff_load_bin_data_final_region <- read_rds("./avertr_setup_output/ff_load_bin_data_final.rds")[[8]]
-  
-  # The BAU scenario results
-  bau_scenario_region <- read_rds("./bau_scenarios/new-york_bau_scenario_2023.rds")
   
   # This is the BAU load
   bau_load_8760 <- bau_scenario_region |> 
@@ -36,7 +60,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     distinct(datetime_8760_col, load_8760_col) |> 
     pull(load_8760_col)
   
-  # New Hourly Load ==========
+  ## New Hourly Load ==========
   if (is.null(hourly_load_reduction)) {
     # capacity factors
     cfs_test <- xlsx_cells(
@@ -70,9 +94,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     distinct(ff_load_bin_col) |> 
     pull(ff_load_bin_col)
   
-  # NEI emission factors (cleaned in avertr_setup)
-  # EVENTUALLY: save 14 versions, only load one
-  nei_efs_region <- read_rds("./avertr_setup_output/nei_efs.rds")[[8]]
+ 
   
   # BINNIFY #######
   # Based on the project, find the new ff load bins
@@ -378,50 +400,34 @@ avert <- function(project_year, project_region, project_type, project_capacity,
                                   TRUE ~ data_so2))
   }
   
-  
-  return(differences_final)
-  
-  
-  
   # And note that this still hasn't addressed fixing the post-change values to
   #   be the same as pre-change, but that's mostly bc u don't return post-change
   #   at all rn
   
   
+  
+  
+
+  hourly_resulting_generation_change <- differences_final |> 
+    summarize(data_generation_summed = sum(data_generation),
+              .by = datetime_8760_col) |> 
+    pull(data_generation_summed)
+  
+  signal_to_noise <- lm(
+    hourly_load_reduction ~ hourly_resulting_generation_change
+  ) |> 
+    summary() |> 
+    pluck("r.squared")
+  
+  avertr_results <- lst(differences_final, signal_to_noise)
+  
+  return(avertr_results)
+  
+  
+  
+  
+  
+  
 }
-
-
-
-
-
-
-
-
-
-
-
-
-# Later: do a full check to ensure variable names are reasonable in each
-#   script, and that they're compatible between scripts
-
-
-
-
-
-# IDEAS (as of 4/8, 2pm): Looks like they exclude load hours outside of
-#   the lowest load bin or highest load bin. (Note: looks like this is
-#   checked against the raw load, not  the load binnified version of it)
-
-
-
-
-# Recall that you can open up macros and compile if you need to,
-#   add breakpoints, and then hover over variable names to get the values.
-
-
-
-# NOTE: you will run up against rare so2 emission events plants (altho
-#   not in New England)
-
 
 
