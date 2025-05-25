@@ -113,18 +113,25 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     # For each hour of the year
     for (i in 1:8760) {
       
-      # Gives a vector containing the difference between raw load and each load
-      #   bin within the region.
-      diff <- load_8760[i] - ff_load_bin_key
+      if (load_8760[i] > max(ff_load_bin_key)) {
+        ff_load_bin_8760[i] <- max(ff_load_bin_key)
+      } else if (load_8760[i] < min(ff_load_bin_key)) {
+        ff_load_bin_8760[i] <- min(ff_load_bin_key)
+      } else {
+        # Gives a vector containing the difference between raw load and each load
+        #   bin within the region.
+        diff <- load_8760[i] - ff_load_bin_key
+        
+        # Exclude all bins where the load bin exceeds the raw load
+        diff[diff < 0] <- NA
+        
+        # Find the smallest difference
+        bin_index <- which.min(diff)
+        
+        # The load bin with the smallest difference is our load bin in this slot
+        ff_load_bin_8760[i] <- ff_load_bin_key[bin_index]
+      }
       
-      # Exclude all bins where the load bin exceeds the raw load
-      diff[diff < 0] <- NA
-      
-      # Find the smallest difference
-      bin_index <- which.min(diff)
-      
-      # The load bin with the smallest difference is our load bin in this slot
-      ff_load_bin_8760[i] <- ff_load_bin_key[bin_index]
     }
     return(ff_load_bin_8760)
   }
@@ -140,6 +147,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
       load_8760_col = new_load_8760,
     ) |> 
     relocate(ff_load_bin_8760_col, .after = load_8760_col)
+  
   
   
   # ASSIGN DATA VALUES ##########
@@ -356,7 +364,9 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   differences_final <- differences_final |> 
     mutate(across(data_pm25:data_nh3, ~ round(.x, 6)))
   
-  
+  # And remove the cols
+  differences_final <- differences_final |> 
+    select(!PM2.52023:NH32023)
   
   # REMOVE INFREQUENT SO2 PLANTS #######
   # ADD COMMENT here once you've written the entire section
@@ -407,6 +417,18 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   
   
   
+  # REMOVE OUTLIER LOAD PLANT RESULTS #######
+  differences_final <- differences_final |>
+    mutate(across(contains("data"), ~ if_else(load_8760_col > max(ff_load_bin_key) | load_8760_col < min(ff_load_bin_key), 0, .x)))
+
+  
+  
+  # OTHER STATS #########
+  pct_hourly_load_change <- abs(hourly_load_reduction / bau_load_8760)
+  
+  
+  
+  
 
   hourly_resulting_generation_change <- differences_final |> 
     summarize(data_generation_summed = sum(data_generation),
@@ -416,10 +438,24 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   signal_to_noise <- lm(
     hourly_load_reduction ~ hourly_resulting_generation_change
   ) |> 
-    summary() |> 
-    pluck("r.squared")
+    summary()
   
-  avertr_results <- lst(differences_final, signal_to_noise)
+  
+  
+  
+  
+  
+  
+  avertr_results <- lst(differences_final, signal_to_noise, pct_hourly_load_change)
+  
+  
+  # Warnings
+  if (max(pct_hourly_load_change) > 0.15) {
+    message("Warning: At least one hour has a load change exceeding 15% of reference scenario load.")
+  }
+  if (max(new_load_8760) > max(ff_load_bin_key) | min(new_load_8760) < min(ff_load_bin_key)) {
+    message("Warning: At least one hour is outside of AVERT’s calcuable range. All such hours are assigned 0 values for their data.")
+  }
   
   return(avertr_results)
   
