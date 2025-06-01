@@ -13,14 +13,9 @@ library(unpivotr)
 
 
 avert <- function(project_year, project_region, project_type, project_capacity,
-                  hourly_load_reduction = NULL, load_bin_data_filepath = NULL,
-                  bau_scenario_filepath = NULL, nei_efs_filepath = NULL) {
+                  hourly_load_reduction = NULL, avertr_setup_output_filepath = NULL) {
   
   # DEFINE/LOAD OBJECTS ######
-  
-  
-  # EVENTUALLY: only loading in for the specific region
-  
   if (is.null(load_bin_data_filepath)) {
     load_bin_data_filepath <- paste0("./ff_load_bin_data/", project_year, "/", project_region, "_ff_load_bin_data_", project_year, ".rds")
   }
@@ -466,4 +461,56 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   
 }
 
+
+
+
+
+
+
+
+
+# ADD PART to read in and work with NEI EFs
+# NEI emission factors (used to calculate PM2.5, VOCs, and NH3 based on heat)
+nei_efs <- xlsx_cells(
+  "./avert-main-module-v4.3.xlsx",
+  sheets = "NEI_EmissionRates"
+)
+
+# Remove first four rows. Assign header rows using unpivotr.
+nei_efs <- nei_efs |> 
+  filter(row > 4) |> 
+  behead("up", "year") |> 
+  behead("up", "data_measure") |> 
+  behead("left", "region") |> 
+  behead("left", "state") |> 
+  behead("left", "plant") |> 
+  behead("left", "orspl") |> 
+  behead("left", "unit") |> 
+  behead("left", "full_name") |> 
+  behead("left", "county") |> 
+  behead("left", "orspl|unit|region")
+
+
+
+# nei_efs_ap ##############
+# We only want emission factors for the input year
+nei_efs_ap <- nei_efs |> 
+  select(`Full Name`:`ORSPL|Unit|Region`, contains("2023")) |> 
+  select(!c(County, Generation2023, `Heat Input2023`))
+
+# Get only the region from the ORSPL|Unit|Region column
+nei_efs <- nei_efs |> 
+  separate_wider_delim(
+    `ORSPL|Unit|Region`,
+    "|",
+    names = c("ORISPL Code", "Unit Code", "Region")
+  )
+
+# And we want a list containing the NEI EFs for each region
+nei_efs_ap <- nei_efs |> 
+  nest(.by = `Region`) |> 
+  pull(data)
+
+# Set names
+nei_efs_ap <- set_names(nei_efs_ap, rdf_name_vector)
 
