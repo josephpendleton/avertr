@@ -20,8 +20,7 @@ avertred <- avert(
 )
 
 
-
-
+differences_final <- avertred$differences_final
 
 
 
@@ -49,9 +48,10 @@ differences_final_grouped <- differences_final |>
   select(!c(load_8760_col, ff_load_bin_8760_col, ff_load_bin_next_col)) |> 
   summarize(
     across(data_generation:data_nh3, sum),
-    .by = c(`ORISPL Code`, `Unit Code`, `Full Unit Name`)
+    .by = c(orispl_code, unit_code, full_unit_name)
   )
 
+differences_final_grouped <- differences_final_grouped |> mutate(orispl_code = as.character(orispl_code))
 
 
 # TESTING #######
@@ -64,8 +64,8 @@ test_joined <- avert_differences_final |>
   inner_join(
     differences_final_grouped,
     by = join_by(
-      `ORSPL (Plant ID)` == `ORISPL Code`,
-      `Unit Name` == `Full Unit Name`
+      `ORSPL (Plant ID)` == orispl_code,
+      `Unit Name` == full_unit_name
     ),
     na_matches = "never",
     unmatched = "error",

@@ -6,40 +6,24 @@
 
 # SET UP ########
 library(tidyverse)
-library(readxl)
 library(tidyxl)
 library(unpivotr)
 
 
 
 avert <- function(project_year, project_region, project_type, project_capacity,
-                  hourly_load_reduction = NULL, avertr_setup_output_filepath = NULL) {
+                  hourly_load_reduction = NULL, avertr_rdf_filepath = NULL) {
   
   # DEFINE/LOAD OBJECTS ######
-  if (is.null(load_bin_data_filepath)) {
-    load_bin_data_filepath <- paste0("./ff_load_bin_data/", project_year, "/", project_region, "_ff_load_bin_data_", project_year, ".rds")
+  if (is.null(avertr_rdf_filepath)) {
+    avertr_rdf_filepath <- paste0("./avertr_rdfs/avertr_rdf_", project_region, "_", project_year, ".rds")
   }
   
-  ff_load_bin_data_final_region <- read_rds(load_bin_data_filepath)
+  ff_load_bin_data_final_region <- read_rds(avertr_rdf_filepath) |> 
+    pluck(paste0("load_bin_data_ap_", project_region))
   
-  
-  # The BAU scenario results
-  if (is.null(bau_scenario_filepath)) {
-    bau_scenario_filepath <- paste0("./bau_scenarios/", project_year, "/", project_region, "_bau_scenarios_", project_year, ".rds")
-  }
-  
-  bau_scenario_region <- read_rds(bau_scenario_filepath)
-  
-  # NEI emission factors
-  if (is.null(nei_efs_filepath)) {
-    nei_efs_filepath <- paste0("./nei_efs/", project_year, "/", project_region, "_nei_efs_", project_year, ".rds")
-  }
-  
-  nei_efs_region <- read_rds(nei_efs_filepath)
-  
-  
-  
-  
+  bau_scenario_region <- read_rds(avertr_rdf_filepath) |> 
+    pluck(paste0("bau_case_ap_", project_region))
   
   # This is simply a vector of each hour of the year 2023
   datetime_8760 <- seq(
@@ -48,6 +32,11 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     length.out = 8760
   )
   
+  # NEI emission factors (used to calculate PM2.5, VOCs, and NH3 based on heat)
+  nei_efs <- xlsx_cells(
+    "./avert-main-module-v4.3.xlsx",
+    sheets = "NEI_EmissionRates"
+  )
   
   # This is the BAU load
   bau_load_8760 <- bau_scenario_region |> 
@@ -219,7 +208,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     load_8760_bau <- pull(assigned_data, load_8760_col)
     
     # The "metadata" here is the hour datetime, the raw load, and the load bin
-    metadata <- select(assigned_data, datetime_8760_col:ff_load_bin_next_col)
+    metadata <- select(assigned_data, datetime_8760_col:full_unit_name)
     
     current_data <- assigned_data |>
       select(contains("data") & !contains("next"))
@@ -248,7 +237,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   
   
   
-  # ADD PM2.5, VOCs, NH3 #######
+  # ADD PM2.5, VOCs, NH3 EFs #######
   # Data got entering incorrectly into the RDFs, so we need to join twice and then
   #   manually correct the Unit Code column. See avertr_setup.R for full details on
   #   this issue.
@@ -278,35 +267,63 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   #     )
   # }
   
-  # Join
-  interped_data_regions <- interped_data_regions |> 
-    left_join(nei_efs_region, by = join_by(`ORISPL Code`, `Unit Code`)) |> 
-    left_join(
-      nei_efs_region,
-      by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
-    )
   
-  # Fix duplicate data columns
-  interped_data_regions <- interped_data_regions |> 
-    mutate(
-      PM2.52023 = coalesce(PM2.52023.x, PM2.52023.y),
-      VOCs2023 = coalesce(VOCs2023.x, VOCs2023.y),
-      NH32023 = coalesce(NH32023.y, NH32023.x)
-    ) |> 
-    select(
-      !c(PM2.52023.x, VOCs2023.x, NH32023.x, PM2.52023.y, VOCs2023.y, NH32023.y)
-    )
   
-  # Fix unit code column
+  
+  nei_efst <- nei_efs |> 
+    filter(row > 4) |> 
+    behead("up", "year") |> 
+    behead("up", "data_measure") |> 
+    behead("left", "region") |> 
+    behead("left", "state") |> 
+    behead("left", "plant") |> 
+    behead("left", "orspl") |> 
+    behead("left", "unit") |> 
+    behead("left", "full_name") |> 
+    behead("left", "county") |> 
+    behead("left", "orspl|unit|region")
+  
+  nei_efst2 <- nei_efst |> 
+    filter(year == project_year & region == project_region & data_measure %in% c("PM2.5", "VOCs", "NH3")) |> 
+    select(numeric, data_measure, orspl, unit) |> 
+    pivot_wider(names_from = data_measure, values_from = numeric)
+  
   interped_data_regions <- interped_data_regions |> 
-    mutate(
-      `Unit Code` = case_when(
-        is.na(`Unit Code.y`) ~ `Unit Code.x`,
-        TRUE ~ `Unit Code.y`
-      ),
-      .after = `ORISPL Code`
-    ) |> 
-    select(!c(`Unit Code.x`, `Unit Code.y`, `Full Name`))
+    # Set up so that if there are rows in y that don't match, they just get dropped,
+    #   but if there are rows in x which don't match, throws an error. Every unit
+    #   should have a match in the NEI emission factors (but not vice versa)
+    inner_join(nei_efst2, by = join_by(orispl_code == orspl, unit_code == unit), unmatched = c("error", "drop"))
+  
+  
+  # # Join
+  # interped_data_regions <- interped_data_regions |> 
+  #   left_join(nei_efs_region, by = join_by(`ORISPL Code`, `Unit Code`)) |> 
+  #   left_join(
+  #     nei_efs_region,
+  #     by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
+  #   )
+  # 
+  # # Fix duplicate data columns
+  # interped_data_regions <- interped_data_regions |> 
+  #   mutate(
+  #     PM2.52023 = coalesce(PM2.52023.x, PM2.52023.y),
+  #     VOCs2023 = coalesce(VOCs2023.x, VOCs2023.y),
+  #     NH32023 = coalesce(NH32023.y, NH32023.x)
+  #   ) |> 
+  #   select(
+  #     !c(PM2.52023.x, VOCs2023.x, NH32023.x, PM2.52023.y, VOCs2023.y, NH32023.y)
+  #   )
+  # 
+  # # Fix unit code column
+  # interped_data_regions <- interped_data_regions |> 
+  #   mutate(
+  #     `Unit Code` = case_when(
+  #       is.na(`Unit Code.y`) ~ `Unit Code.x`,
+  #       TRUE ~ `Unit Code.y`
+  #     ),
+  #     .after = `ORISPL Code`
+  #   ) |> 
+  #   select(!c(`Unit Code.x`, `Unit Code.y`, `Full Name`))
   
   # # Check to ensure there are no remaining NAs
   # interped_data_regions |>
@@ -319,32 +336,38 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   # GET DIFFERENCES #######
   # # Test: if we've done everything right, the "metadata" for these two files
   # #   should be identical:
-  # interped_data_regions_metadata <- interped_data_regions |>
-  #   select(c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
-  # 
-  # bau_scenario_region_metadata <- bau_scenario_region |>
-  #   select(c(datetime_8760_col, `ORISPL Code`, `Unit Code`, `Full Unit Name`))
-  # 
+  interped_data_regions_metadata <- interped_data_regions |>
+    select(c(datetime_8760_col, orispl_code, unit_code, full_unit_name))
+
+  bau_scenario_region_metadata <- bau_scenario_region |>
+    select(c(datetime_8760_col, orispl_code, unit_code, full_unit_name))
+
   # all.equal(interped_data_regions_metadata, bau_scenario_region_metadata)
+
+  differences_final_metadata <- interped_data_regions |>
+    select(c(datetime_8760_col:full_unit_name, PM2.5:NH3))
+
+  interped_data_regions_data <- interped_data_regions |>
+    select(!c(datetime_8760_col:full_unit_name, PM2.5:NH3))
+
+  bau_scenario_region_data <- bau_scenario_region |>
+    select(!c(datetime_8760_col:full_unit_name))
   
-  differences_final_metadata <- interped_data_regions |> 
-    select(c(datetime_8760_col:ff_load_bin_next_col, PM2.52023:NH32023))
   
-  interped_data_regions_data <- interped_data_regions |> 
-    select(!c(datetime_8760_col:ff_load_bin_next_col, PM2.52023:NH32023))
+  # TEMPORARY MEASURE! You should go back and remove NEI values from rdf_prepare
+  bau_scenario_region_data <- bau_scenario_region_data |> select(!data_pm25:data_nh3)
   
-  bau_scenario_region_data <- bau_scenario_region |> 
-    select(!c(datetime_8760_col:ff_load_bin_next_col, data_pm25:data_nh3))
   
-  # # Check: Verify that column names are in the same order
+
+  # Check: Verify that column names are in the same order
   # sum(names(interped_data_regions_data) != names(bau_scenario_region_data))
   
   differences_final <- interped_data_regions_data |> 
     map2(bau_scenario_region_data, ~ .x - .y) |> 
     bind_cols(differences_final_metadata) |> 
     relocate(
-      c(datetime_8760_col:ff_load_bin_next_col, PM2.52023:NH32023),
-      .before = 1
+      data_generation:data_heat,
+      .after = last_col()
     )
   
   differences_final <- differences_final |> 
@@ -352,16 +375,15 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   
   # Add NEI emissions
   differences_final <- differences_final |> 
-    mutate(data_pm25 = data_heat * PM2.52023,
-           data_voc = data_heat * VOCs2023,
-           data_nh3 = data_heat * NH32023)
+    mutate(
+      data_pm25 = data_heat * PM2.5,
+      data_voc = data_heat * VOCs,
+      data_nh3 = data_heat * NH3
+    ) |> 
+    select(!PM2.5:NH3)
   
   differences_final <- differences_final |> 
     mutate(across(data_pm25:data_nh3, ~ round(.x, 6)))
-  
-  # And remove the cols
-  differences_final <- differences_final |> 
-    select(!PM2.52023:NH32023)
   
   # REMOVE INFREQUENT SO2 PLANTS #######
   # ADD COMMENT here once you've written the entire section
@@ -406,7 +428,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   }
   
   # And note that this still hasn't addressed fixing the post-change values to
-  #   be the same as pre-change, but that's mostly bc u don't return post-change
+  #   be the same as pre-change, but that's bc u don't return post-change
   #   at all rn
   
   
@@ -469,48 +491,29 @@ avert <- function(project_year, project_region, project_type, project_capacity,
 
 
 
-# ADD PART to read in and work with NEI EFs
-# NEI emission factors (used to calculate PM2.5, VOCs, and NH3 based on heat)
-nei_efs <- xlsx_cells(
-  "./avert-main-module-v4.3.xlsx",
-  sheets = "NEI_EmissionRates"
-)
-
-# Remove first four rows. Assign header rows using unpivotr.
-nei_efs <- nei_efs |> 
-  filter(row > 4) |> 
-  behead("up", "year") |> 
-  behead("up", "data_measure") |> 
-  behead("left", "region") |> 
-  behead("left", "state") |> 
-  behead("left", "plant") |> 
-  behead("left", "orspl") |> 
-  behead("left", "unit") |> 
-  behead("left", "full_name") |> 
-  behead("left", "county") |> 
-  behead("left", "orspl|unit|region")
 
 
 
-# nei_efs_ap ##############
-# We only want emission factors for the input year
-nei_efs_ap <- nei_efs |> 
-  select(`Full Name`:`ORSPL|Unit|Region`, contains("2023")) |> 
-  select(!c(County, Generation2023, `Heat Input2023`))
 
-# Get only the region from the ORSPL|Unit|Region column
-nei_efs <- nei_efs |> 
-  separate_wider_delim(
-    `ORSPL|Unit|Region`,
-    "|",
-    names = c("ORISPL Code", "Unit Code", "Region")
-  )
-
-# And we want a list containing the NEI EFs for each region
-nei_efs_ap <- nei_efs |> 
-  nest(.by = `Region`) |> 
-  pull(data)
-
-# Set names
-nei_efs_ap <- set_names(nei_efs_ap, rdf_name_vector)
+# # nei_efs_ap ##############
+# # We only want emission factors for the input year
+# nei_efs_ap <- nei_efs |> 
+#   select(`Full Name`:`ORSPL|Unit|Region`, contains("2023")) |> 
+#   select(!c(County, Generation2023, `Heat Input2023`))
+# 
+# # Get only the region from the ORSPL|Unit|Region column
+# nei_efs <- nei_efs |> 
+#   separate_wider_delim(
+#     `ORSPL|Unit|Region`,
+#     "|",
+#     names = c("ORISPL Code", "Unit Code", "Region")
+#   )
+# 
+# # And we want a list containing the NEI EFs for each region
+# nei_efs_ap <- nei_efs |> 
+#   nest(.by = `Region`) |> 
+#   pull(data)
+# 
+# # Set names
+# nei_efs_ap <- set_names(nei_efs_ap, rdf_name_vector)
 

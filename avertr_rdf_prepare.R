@@ -7,7 +7,6 @@
 
 
 library(tidyverse)
-library(readxl)
 library(tidyxl)
 library(unpivotr)
 
@@ -36,7 +35,7 @@ setup_avertr <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
     map(~ xlsx_cells(.x, sheets = "Data"))
   
   
-  browser()
+  
   # # load_bin_data_ap #############
   # # This section creates an avertr-prepared version of the load bin data from
   # #   the AVERT regional data files.
@@ -65,7 +64,7 @@ setup_avertr <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
                      14002:16000, 16002:18000)
   
   # expand_grid takes the Cartesian product of the rdfs and data ranges, and
-  #   then we map each iteration to read_excel. It returns a list of length 126
+  #   then we filter for cells in each range. It returns a list of length 126
   #   (14 regions * 9 data measures = 126). The first 9 elements of the list are
   #   the 9 data measures for the first region. The next 9 elements of the list
   #   are the 9 data measures for the second region. Etc. Each element is a
@@ -163,136 +162,6 @@ setup_avertr <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   in them
   load_bin_data_ap <- load_bin_data_ap |> 
     imap(~ rename_with(.data = .x, .fn = str_c, .cols = contains("data"), .y, sep = "_"))
-
-  
-  
-  
-  
-  
-  
-  
-
-  
-  
-  # # These are the business-as-usual 8760 loads for each region. Note that these
-  # #   are raw load values — they have not been put into load bins (yet).
-  # load_8760s_bau <- rdf_filepaths |> 
-  #   map(~ read_excel(.x, sheet = "Data", range = "F3:F8763")) |> 
-  #   map(~ pull(.x, 1))
-  # 
-  # # These are the 9 Excel sheet ranges corresponding (in order) to each of the
-  # #   9 data measures from above. Note that there should be the same number of
-  # #   columns and rows for each of the 9 data measures within an RDF, but these
-  # #   numbers may vary between RDFs. Thus, I'm grabbing a wide expanse of rows
-  # #   and columns, to ensure that I don't accidentally miss any data. (See the
-  # #   RDFs if this comment doesn't make sense.)
-  # ranges <- c("H4:EA2000", "H2004:EA4000", "H4004:EA6000", "H6004:EA8000",
-  #             "H8004:EA10000", "H10004:EA12000", "H12004:EA14000",
-  #             "H14004:EA16000", "H16004:EA18000")
-  # 
-  # # expand_grid takes the Cartesian product of the rdfs and data ranges, and
-  # #   then we map each iteration to read_excel. It returns a list of length 126
-  # #   (14 regions * 9 data measures = 126). The first 9 elements of the list are
-  # #   the 9 data measures for the first region. The next 9 elements of the list
-  # #   are the 9 data measures for the second region. Etc. Each element is a
-  # #   tibble with information on each EGU's across all the different fossil-fuel
-  # #   load bins, for the given data measure, for the given region. Let's call
-  # #   each of these elements a "data measure table".
-  # ff_load_bin_data_raw <- expand_grid(rdf_filepaths, ranges) |> 
-  #   pmap(~ read_excel(.x, sheet = "Data", range = .y)) |> 
-  #   # To suppress messages about name repair
-  #   suppressMessages()
-  # 
-  
-  
-  
-  
-  
-  # # load_bin_data_ap 
-  # # This section creates an avertr-prepared version of the load bin data from
-  # #   the AVERT regional data files.
-  # ## Prep Load Bin Data
-  # # As mentioned above, the ranges used to select from the excel sheets are
-  # #   unnecessarily expansive. All (and only) columns without data that we've read
-  # #   in get assigned names containing "...", so unselect those columns.
-  # #   Additionally, filter to ensure that the unit name is present, which
-  # #   eliminates the extra rows.
-  # ff_load_bin_data <- ff_load_bin_data_raw |> 
-  #   map(filter, !is.na(`Full Unit Name`)) |> 
-  #   map(select, !contains("..."))
-  # 
-  # # In each df, select only relevant columns
-  # ff_load_bin_data <- ff_load_bin_data |> 
-  #   map(~select(., !(State:FuelType)))
-  # 
-  # # Change data type of ORISPL code to character
-  # ff_load_bin_data <- ff_load_bin_data |> 
-  #   map(~ mutate(.x, `ORISPL Code` = as.character(`ORISPL Code`)))
-  # 
-  # 
-  # ## Prep Load Bin Keys
-  # # A region's "load bin key" is the set of the names of its fossil-fuel load bins.
-  # #   Get the column names of each data measure table, select only those with only 
-  # #   digits in them, coerce to numeric. For each region, the results of the 9 
-  # #   different data measure tables will look the same, so the load bins repeat 9 
-  # #   times for each region (which is how we want this object structured, for 
-  # #   clean_data below). Thus we get an "expanded" list, of length 126.
-  # ff_load_bin_keys_expanded <- map(ff_load_bin_data, colnames) |> 
-  #   map(str_subset, "^\\d+$") |> 
-  #   map(as.numeric)
-  # 
-  # # Then get a unique version
-  # ff_load_bin_keys <- unique(ff_load_bin_keys_expanded)
-  # 
-  # 
-  # ## Perform Cleaning
-  # # clean_data will be applied to each data measure table. It does 2 main things:
-  # #   1. It makes each table longer, such that each EGU-load bin pair gets a row,
-  # #   and 2. It creates a column containing the value of the relevant data
-  # #    measure in the next fossil-fuel load bin (which gets used later on).
-  # clean_data <- function(ff_load_bin_data_df, ff_load_bin_key) {
-  #   ff_load_bin_data_df <- ff_load_bin_data_df |> 
-  #     pivot_longer(
-  #       # Selects any columns which appear in ff_load_bin_key
-  #       any_of(as.character(ff_load_bin_key)),
-  #       names_to = "ff_load_bin_col",
-  #       values_to = "data") |> 
-  #     mutate(
-  #       ff_load_bin_col = as.numeric(ff_load_bin_col),
-  #       # lead() simply offsets data by 1. Since the df is ordered by load bin,
-  #       #   this gives you the data measure value of the next load bin.
-  #       data_next_bin = lead(data), 
-  #       # When the load bin is as high as it can go, there's no "next" load bin.
-  #       #   Thus, lead() pulls in the lowest load bin from the next EGU. But
-  #       #   this value should really just be NA. So if_else() to look for when
-  #       #   the load bin is the highest in ff_load_bin_key, and assigns NA to the
-  #       #   value of data in the next load bin, since there is no next load bin.
-  #       data_next_bin = if_else(
-  #         ff_load_bin_col == max(ff_load_bin_key),
-  #         NA,
-  #         data_next_bin
-  #       ),
-  #       # Do the same thing for the load bin column itself
-  #       ff_load_bin_next_col = lead(ff_load_bin_col),
-  #       ff_load_bin_next_col = if_else(
-  #         ff_load_bin_col == max(ff_load_bin_key),
-  #         NA,
-  #         ff_load_bin_next_col
-  #       )
-  #     ) |> 
-  #     relocate(ff_load_bin_next_col, .after = ff_load_bin_col)
-  #   return(ff_load_bin_data_df)
-  # }
-  # 
-  # # Apply clean_data
-  # load_bin_data_ap <- ff_load_bin_data |> 
-  #   map2(ff_load_bin_keys_expanded, clean_data)
-  # 
-  # # Rename the data columns to have the name of the appropriate data measure
-  # #   in them
-  # load_bin_data_ap <- load_bin_data_ap |> 
-  #   map2(rep(data_measures, 14),
-  #        ~ rename_with(.data = .x, .fn = str_c, .cols = contains("data"), .y, sep = "_"))
   
   
   ## Finalize ===========
@@ -507,7 +376,7 @@ setup_avertr <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   # PM2.5, VOCs, and NH3 are estimated by multiplying the heat data measure by a
   #   generating unit-specific emission factor from the NEI.
   
-  # prep nei_efs ----------
+  ### prep nei_efs ----------
   # Remove first four rows. Assign header rows using unpivotr. (Is there a
   #   way to make all these behead() calls more compact?)
   
@@ -533,84 +402,11 @@ setup_avertr <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
     split(nei_efst2$region) |> 
     map(~ select(.x, !region))
   
-  browser()
-  
-  interped_data_regionst <- interped_data_regions |> 
-    map2(nei_efst2, ~ left_join(.x, .y, by = join_by(orispl_code == orspl, unit_code == unit)))
-  
-  
-  
   interped_data_regions <- interped_data_regions |> 
     map2(nei_efst2, ~ left_join(.x, .y, by = join_by(orispl_code == orspl, unit_code == unit)))
   
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  # nei_efs_ap ##############
-  # # We only want emission factors for the input year
-  # nei_efstst <- nei_efs |> 
-  #   filter(year == scenario_year & data_measure %in% c("PM2.5", "VOCs", "NH3")) |> 
-  #   pivot_wider(names_from = data_measure, values_from = numeric, id_cols = c(region:`orspl|unit|region`))
-  # 
-  # 
-  # 
-  # 
-  # # NEXT STEPS! First, split by the region col and get into a list. Then do the
-  # #   regular map.
-  # 
-  # 
-  # 
-  # 
-  # # Get only the region from the ORSPL|Unit|Region column
-  # nei_efs <- nei_efs |> 
-  #   separate_wider_delim(
-  #     `ORSPL|Unit|Region`,
-  #     "|",
-  #     names = c("ORISPL Code", "Unit Code", "Region")
-  #   )
-  # 
-  # # And we want a list containing the NEI EFs for each region
-  # nei_efs_ap <- nei_efs |> 
-  #   nest(.by = `Region`) |> 
-  #   pull(data)
-  # 
-  # # Set names
-  # nei_efs_ap <- set_names(nei_efs_ap, rdf_name_vector)
-  # 
-  # 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  ### calculate emissions ----------
+  ### calculate NEI emissions ----------
   bau_case_ap <- interped_data_regions |> 
     map(~ mutate(
       .x,
@@ -627,8 +423,8 @@ setup_avertr <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   
   
   # COMBINE AND RETURN ############
-  avertr_rdfs <- pmap(load_bin_data_ap, bau_case_ap, lst) |> 
-    map2(rdf_name_vector, set_names)
+  avertr_rdfs <- map2(load_bin_data_ap, bau_case_ap, ~ lst(.x, .y)) |> 
+    imap(~ set_names(.x, c(str_c("load_bin_data_ap_", .y), str_c("bau_case_ap_", .y))))
   
   return(avertr_rdfs)
   
