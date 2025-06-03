@@ -20,7 +20,8 @@ avertred <- avert(
 )
 
 
-differences_final <- avertred$differences_final
+differences_final <- avertred |> 
+  pluck("differences_final")
 
 
 
@@ -33,12 +34,25 @@ avert_run_filepath <- "/Users/joeypendleton/OtherFolders/avertr/test_scenarios/3
 
 # LOAD OBJECTS ######
 
-# NOTE: Replace w more robust range value
-avert_differences_final <- read_excel(avert_run_filepath,
-                                      sheet = "Summary",
-                                      range = "C7:AA123") |> 
-  mutate(`ORSPL (Plant ID)` = as.character(`ORSPL (Plant ID)`))
+# # NOTE: Replace w more robust range value
+# avert_differences_final <- read_excel(avert_run_filepath,
+#                                       sheet = "Summary",
+#                                       range = "C7:AA123") |> 
+#   mutate(`ORSPL (Plant ID)` = as.character(`ORSPL (Plant ID)`))
 
+
+avert_differences_final <- xlsx_cells(avert_run_filepath, sheets = "Summary")
+
+avert_differences_final <- avert_differences_final |> 
+  filter(row >= 7 & !is_blank) |> 
+  behead("up", "variable") |>
+  pack() |> 
+  select(row, col, value, variable) |> 
+  unpack() |> 
+  select(!col) |> 
+  spatter(variable) |> 
+  select(!row) |> 
+  relocate(`Annual Change in CO2 (tons)`:`Capacity Factor (Calculated, Post-Change) (%)`, .after = last_col())
 
 
 # AGGREGATE TO YEAR #######
