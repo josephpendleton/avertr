@@ -13,7 +13,7 @@ source("./avertr.R")
 
 # RUN ###########
 avertred <- avert(
-  project_capacity = 3154,
+  project_capacity = 500,
   project_region = "New England",
   project_year = "2023",
   project_type = "Offshore Wind"
@@ -29,7 +29,7 @@ differences_final <- avertred |>
 # Enter the filepath to the AVERT main module workbook (converted from its
 #   default .xlsb format to either .xls or .xlsx) where you've run the scenario
 #   that you wish to test avertr.R's output against
-avert_run_filepath <- "/Users/joeypendleton/OtherFolders/avertr/test_scenarios/3154MW_OSW_NE_05252025.xlsx"
+avert_run_filepath <- "/Users/joeypendleton/OtherFolders/avertr/test_scenarios/500MW_OSW_NE_04012205.xlsx"
 
 
 # LOAD OBJECTS ######
@@ -198,62 +198,184 @@ data_measure_sheet_names <- c(
   "NH3"
 )
 
-# The unit name, ORISPL code, and unit ID are split up across three header rows.
-#   Read in the three and then concatenate them.
-avert_unit_differences_final_plant_info <- data_measure_sheet_names |> 
-  map(
-    ~ read_excel(
-      avert_run_filepath,
-      sheet = .x,
-      range = "L1:DW3", # EVENTUALLY: find more robust way to set range.
-      col_names = FALSE
-    )
-  ) |> 
-  map(map_chr, ~ str_c(.x, collapse = "|"))
 
-# Read in all 8 data measures, assigning each sheet the column names created
-#   above
+
 avert_unit_differences_final <- data_measure_sheet_names |> 
-  map2(
-    avert_unit_differences_final_plant_info,
-    ~ read_excel(
-      avert_run_filepath,
-      sheet = .x,
-      range = "L4:DW8763",
-      col_names = .y
-    )
-  )
-
-# Pivot the sheets so that each EGU-hour pair is a row, and split up the column
-#   with ORISPL, unit code, and name into three columns.
-avert_unit_differences_final <- avert_unit_differences_final |> 
-  map2(
-    data_measure_sheet_names,
-    ~ pivot_longer(
-      .x,
-      everything(),
-      names_to = "EGU",
-      values_to = .y)
-  ) |> 
   map(
-    ~ separate_wider_delim(
-      .x,
-      EGU,
-      "|",
-      names = c("ORISPL Code", "Unit Code", "Unit Name")
-    )
+    ~ xlsx_cells(avert_run_filepath, sheets = .x, include_blank_cells = FALSE)
   )
 
-# Bind all the tibbles in the list into one, and remove redundant columns that
-#   result from the bind_cols()
-avert_unit_differences_final <- avert_unit_differences_final |> 
-  bind_cols() |> 
-  select(`ORISPL Code...1`:`Unit Name...3` | !contains("...")) |> 
-  rename(
-    `ORISPL Code` = `ORISPL Code...1`,
-    `Unit Code` = `Unit Code...2`,
-    `Unit Name` = `Unit Name...3`
-  )
+
+avert_unit_differences_final_doub <- avert_unit_differences_final[1:2]
+
+avert_unit_differences_finalt <- avert_unit_differences_final |> 
+  map(~ filter(.x, row <= 8763 & (col >= 12 | col == 8))) |>
+  map(~ filter(.x, !(!is.na(character) & character == "Load outside of bin range"))) |> 
+  map(~ mutate(.x, data_type = if_else(data_type == "date (ISO8601)", "content", data_type))) |> 
+  map(~ behead(.x, "left", "timestamp")) |> 
+  map(~ behead(.x, "up", "orspl")) |> 
+  map(~ behead(.x, "up", "unit_id")) |> 
+  map(~ behead(.x, "up", "unit_name")) |> 
+  map(~ mutate(.x, timestamp = as_datetime(timestamp))) |> 
+  map(pack) |> 
+  map(~ select(.x, row, col, value, timestamp, orspl, unit_id, unit_name)) |> 
+  map(unpack) |> 
+  map(~ select(.x, !col)) |> 
+  map2(data_measure_sheet_names, ~ mutate(.x, data_measure = .y)) |> 
+  map(~ spatter(.x, data_measure))
+
+# Later, definitely write a function to do all this and then map it, rather
+#   than repeated maps. Do the same above (if it's faster). 
+prep_diffs <- function(data_measure_table, data_measure_name) {
+  data_measure_table <- data_measure_table |> 
+    filter(row <= 8763 & (col >= 12 | col == 8)) |> 
+    filter(!(!is.na(character) & character == "Load outside of bin range")) |> 
+    mutate(data_type = if_else(data_type == "date (ISO8601)", "content", data_type)) |> 
+    behead("left", "timestamp") |> 
+    behead("up", "orspl") |> 
+    behead("up", "unit_id") |> 
+    behead("up", "unit_name") |> 
+    mutate(timestamp = as_datetime(timestamp)) |> 
+    pack() |> 
+    select(row, col, value, timestamp, orspl, unit_id, unit_name) |> 
+    unpack() |> 
+    select(!col) |> 
+    mutate(data_measure = data_measure_name) |> 
+    spatter(data_measure) |> 
+    select(!row)
+  
+  return(data_measure_table)
+}
+
+
+st <- Sys.time()
+# Next try cutting it off before the spatter. Also consider just writing it
+#   as an anonymous function, prob simpler
+avert_unit_differences_finaltALT <- avert_unit_differences_final |> 
+  map2(data_measure_sheet_names, prep_diffs)
+
+et <- Sys.time()
+
+et - st
+
+
+
+
+
+avert_unit_differences_finaltt <- avert_unit_differences_finalt |> 
+  reduce(left_join, by = join_by(timestamp, orspl, unit_id, unit_name))
+
+
+# WHEN TESTING THE TEST: verify that this actually gives you the correct # of
+#   rows, whether or not there are load bins exceeded.
+
+
+avert_unit_differences_finalt3 <- avert_unit_differences_finaltt |> 
+  mutate(unit_id = word(unit_name, -1))
+
+
+
+# Should work now, but be sure to test it on regular cases too
+
+
+
+# avert_differences_final |> 
+#   filter(row >= 7 & !is_blank) |> 
+#   behead("up", "variable") |>
+#   pack() |> 
+#   select(row, col, value, variable) |> 
+#   unpack() |> 
+#   select(!col) |> 
+#   spatter(variable) |> 
+#   select(!row) |> 
+#   relocate(`Annual Change in CO2 (tons)`:`Capacity Factor (Calculated, Post-Change) (%)`, .after = last_col())
+
+
+
+
+
+
+
+# replace unit ids w last word in name(?)
+
+
+
+
+
+
+
+
+
+
+
+# # The unit name, ORISPL code, and unit ID are split up across three header rows.
+# #   Read in the three and then concatenate them.
+# avert_unit_differences_final_plant_info <- data_measure_sheet_names |> 
+#   map(
+#     ~ read_excel(
+#       avert_run_filepath,
+#       sheet = .x,
+#       range = "L1:DW3", # EVENTUALLY: find more robust way to set range.
+#       col_names = FALSE
+#     )
+#   ) |> 
+#   map(map_chr, ~ str_c(.x, collapse = "|"))
+# 
+# # Read in all 8 data measures, assigning each sheet the column names created
+# #   above
+# avert_unit_differences_final <- data_measure_sheet_names |> 
+#   map2(
+#     avert_unit_differences_final_plant_info,
+#     ~ read_excel(
+#       avert_run_filepath,
+#       sheet = .x,
+#       range = "L4:DW8763",
+#       col_names = .y
+#     )
+#   )
+# 
+# # Pivot the sheets so that each EGU-hour pair is a row, and split up the column
+# #   with ORISPL, unit code, and name into three columns.
+# avert_unit_differences_final <- avert_unit_differences_final |> 
+#   map2(
+#     data_measure_sheet_names,
+#     ~ pivot_longer(
+#       .x,
+#       everything(),
+#       names_to = "EGU",
+#       values_to = .y)
+#   ) |> 
+#   map(
+#     ~ separate_wider_delim(
+#       .x,
+#       EGU,
+#       "|",
+#       names = c("ORISPL Code", "Unit Code", "Unit Name")
+#     )
+#   )
+# 
+# # Bind all the tibbles in the list into one, and remove redundant columns that
+# #   result from the bind_cols()
+# avert_unit_differences_final <- avert_unit_differences_final |> 
+#   bind_cols() |> 
+#   select(`ORISPL Code...1`:`Unit Name...3` | !contains("...")) |> 
+#   rename(
+#     `ORISPL Code` = `ORISPL Code...1`,
+#     `Unit Code` = `Unit Code...2`,
+#     `Unit Name` = `Unit Name...3`
+#   )
+
+
+
+
+
+
+
+
+
+# Make sure this accounts for the fact that you're probably missing some
+#   rows from avertr. Maybe do a proper join to mitigate? You'll prob have
+#   to fix unit code first.
 
 # Bind avertr differences with the AVERT differences we just wrangled
 test_joined_hourly <- differences_final |> 
