@@ -16,7 +16,8 @@ avertred <- avert(
   project_capacity = 500,
   project_region = "New England",
   project_year = "2023",
-  project_type = "Offshore Wind"
+  project_type = "Offshore Wind",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx"
 )
 
 

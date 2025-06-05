@@ -2,6 +2,8 @@ library(tidyverse)
 library(tidyxl)
 library(unpivotr)
 
+
+
 prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   # DEFINE/LOAD OBJECTS ############
   # Vector of each hour of the year 2023
@@ -245,12 +247,11 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   it never matches to a higher load bin. This is because of the way that we
   #   do the interpolation below.
   binnify <- function(load_8760, ff_load_bin_key) {
-    
     # For each hour of the year
     for (i in 1:8760) {
       
       # Gives a vector containing the difference between raw load and each load
-      #   bin within the region.
+      #   bin within the region
       diff <- load_8760[i] - ff_load_bin_key
       
       # Exclude all bins where the load bin exceeds the raw load
@@ -280,7 +281,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   
   
   ## Assign Data Values ==============
-  # Now we take our binnified BAU load, and join on the data measures for the
+  # Now we take our binnified BAU load and join on the data measures for the
   #   appropriate load bins from load_bin_data_ap. We expect the relationship
   #   to be many-to-many, and rely on the join to expand the size of the
   #   tibble by returning all matches. And throw an error if any given load
