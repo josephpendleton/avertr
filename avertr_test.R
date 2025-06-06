@@ -2,7 +2,7 @@
 #   the annual unit level, annual region level, and/or hourly unit level.
 
 
-
+st <- Sys.time()
 # SET UP ########
 # Assumes you have altered avertr.R by specifying your desired region and
 #   load change
@@ -10,16 +10,18 @@ source("./avertr.R")
 
 
 
-
 # RUN ###########
 avertred <- avert(
-  project_capacity = 500,
-  project_region = "New England",
+  project_capacity = 3000,
+  project_region = "Mid-Atlantic",
   project_year = "2023",
   project_type = "Offshore Wind",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx"
 )
 
+et <- Sys.time()
+
+et - st
 
 differences_final <- avertred |> 
   pluck("differences_final")

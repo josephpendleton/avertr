@@ -13,7 +13,13 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   # If no avertr rdf filepath entered, assumes it's one of the standard runs and
   #   fills in filepath based on region and year.
   if (is.null(avertr_rdf_filepath)) {
-    avertr_rdf_filepath <- paste0("./avertr_rdfs/avertr_rdf_", project_region, "_", project_year, ".rds")
+    avertr_rdf_filepath <- paste0(
+      "./avertr_rdfs/avertr_rdf_",
+      project_region,
+      "_",
+      project_year,
+      ".rds"
+    )
   }
   
   load_bin_data_ap_region <- read_rds(avertr_rdf_filepath) |> 
@@ -60,7 +66,11 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     cfs <- cfs |> 
       behead("up-left", "Region") |> 
       behead("up", "Project Type") |> 
-      filter(Region == project_region & `Project Type` == project_type & row <= 8786)
+      filter(
+        Region == project_region &
+        `Project Type` == project_type &
+        row <= 8786
+      )
     
     capacity_factor_8760 <- cfs |> 
       # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
@@ -108,8 +118,8 @@ avert <- function(project_year, project_region, project_type, project_capacity,
       } else if (load_8760[i] < min(ff_load_bin_key)) {
         ff_load_bin_8760[i] <- min(ff_load_bin_key)
       } else {
-        # Gives a vector containing the difference between raw load and each load
-        #   bin within the region
+        # Gives a vector containing the difference between raw load and each
+        #   load bin within the region
         diff <- load_8760[i] - ff_load_bin_key
         
         # Exclude all bins where the load bin exceeds the raw load
@@ -152,6 +162,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     unmatched = c("error", "drop"),
     relationship = "many-to-many"
   )
+  
   
   
   # OZONE SEASON SPLIT ###############
@@ -203,9 +214,9 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   # INTERPOLATE ##########
   # Now we interpolate the data. For each hour of the year, for each EGU, we
   #   have its data measure for the load bin and the next load bin. Recall that
-  #   the raw generation value (for the EGU, for the hour) falls between the load
-  #   bin and the next load bin. Thus, based on the raw generation value, we
-  #   linearly interpolate between the two load bins.
+  #   the raw generation value (for the EGU, for the hour) falls between the
+  #   load bin and the next load bin. Thus, based on the raw generation value,
+  #   we linearly interpolate between the two load bins.
   
   interpolate <- function(assigned_data) {
     ff_load_bin_8760 <- pull(assigned_data, ff_load_bin_8760_col)
@@ -305,92 +316,17 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     pivot_wider(names_from = data_measure, values_from = numeric)
   
   differences_final <- differences_final |> 
-    # Set up so that if there are rows in y that don't match, they just get dropped,
-    #   but if there are rows in x which don't match, throws an error. Every unit
-    #   should have a match in the NEI emission factors (but not vice versa).
-    #   And relationship is many-to-one, meaning each row from x should match
-    #   with at most one row in y.
+    # Set up so that if there are rows in y that don't match, they just get
+    #   dropped,but if there are rows in x which don't match, throws an error.
+    #   Every unit should have a match in the NEI emission factors (but not 
+    #   vice versa). And relationship is many-to-one, meaning each row from x
+    #   should match with at most one row in y.
     inner_join(
       nei_efs,
       by = join_by(orispl_code == orspl, unit_code == unit),
       unmatched = c("error", "drop"),
       relationship = "many-to-one"
     )
-  
-  
-  
-  
-  
-  # Data got entering incorrectly into the RDFs, so we need to join twice and then
-  #   manually correct the Unit Code column. See avertr_setup.R for full details on
-  #   this issue.
-  
-  # # Check: This should return a tibble with 0 rows.
-  # interped_data_regions |>
-  #   anti_join(nei_efs_region, by = join_by(`ORISPL Code`, `Unit Code`)) |>
-  #   anti_join(
-  #     nei_efs_region,
-  #     by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
-  #   )
-  
-  # # Mid-atlantic needs to have a few values manually corrected upfront. Again, see
-  # #   avertr_setup.R for full details.
-  # if (region == "mid-atlantic") {
-  #   interped_data_regions <- interped_data_regions |> 
-  #     mutate(`Unit Code` = case_when(
-  #       # In NEI EFs sheet, only one unit with ORISPL 50611. It's unit code is
-  #       #   listed as 031, which makes perfect sense.
-  #       `ORISPL Code` == "50611" & `Unit Code` == "31" ~ "031",
-  #       # In NEI EFs sheetm exactly three units with ORISPL 55297. They have unit
-  #       #   codes 001, 002, and 003, which again makes perfect sense.
-  #       `ORISPL Code` == "55297" & `Unit Code` == "3" ~ "003",
-  #       `ORISPL Code` == "55297" & `Unit Code` == "1" ~ "001",
-  #       `ORISPL Code` == "55297" & `Unit Code` == "2" ~ "002",
-  #       TRUE ~ `Unit Code`)
-  #     )
-  # }
-  
-  
-  
-  
-  
-  
-  # # Join
-  # interped_data_regions <- interped_data_regions |> 
-  #   left_join(nei_efs_region, by = join_by(`ORISPL Code`, `Unit Code`)) |> 
-  #   left_join(
-  #     nei_efs_region,
-  #     by = join_by(`ORISPL Code`, `Full Unit Name` == `Full Name`)
-  #   )
-  # 
-  # # Fix duplicate data columns
-  # interped_data_regions <- interped_data_regions |> 
-  #   mutate(
-  #     PM2.52023 = coalesce(PM2.52023.x, PM2.52023.y),
-  #     VOCs2023 = coalesce(VOCs2023.x, VOCs2023.y),
-  #     NH32023 = coalesce(NH32023.y, NH32023.x)
-  #   ) |> 
-  #   select(
-  #     !c(PM2.52023.x, VOCs2023.x, NH32023.x, PM2.52023.y, VOCs2023.y, NH32023.y)
-  #   )
-  # 
-  # # Fix unit code column
-  # interped_data_regions <- interped_data_regions |> 
-  #   mutate(
-  #     `Unit Code` = case_when(
-  #       is.na(`Unit Code.y`) ~ `Unit Code.x`,
-  #       TRUE ~ `Unit Code.y`
-  #     ),
-  #     .after = `ORISPL Code`
-  #   ) |> 
-  #   select(!c(`Unit Code.x`, `Unit Code.y`, `Full Name`))
-  
-  # # Check to ensure there are no remaining NAs
-  # interped_data_regions |>
-  #   select(`Unit Code`) |>
-  #   is.na() |>
-  #   sum()
-  
   
   # Calculate NEI data
   differences_final <- differences_final |> 
@@ -464,53 +400,62 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     unpack() |>
     spatter(field)
   
+  infrequent_so2_event_egus <- infrequent_so2_event_egus |>
+    mutate(Unit = as.character(Unit))
+  
   # If there are any infrequent SO2 EGUs in this region and year...
   if (nrow(infrequent_so2_event_egus) > 0) {
     
-    
-    
-    
-    
-    
-    # ENDED EDITING HERE!!!!
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    t3_egus <- infrequent_so2_event_egus |> pull(character)
+    # Left join, so keeping all rows from differences_final. Ensure that all
+    #   EGUs from infrequent_so2_event_egus get matched, and that at most one
+    #   EGU gets matched to a given row of differences_final
+    differences_final <- differences_final |> 
+      left_join(
+        infrequent_so2_event_egus,
+        by = join_by(orispl_code == ORSPL, unit_code == Unit),
+        unmatched = "error",
+        relationship = "many-to-one"
+      )
     
     differences_final <- differences_final |> 
-      mutate(data_so2 = case_when(`Full Unit Name` %in% t3_egus ~ 0,
-                                  TRUE ~ data_so2))
+      mutate(across(contains("data"), \(x) case_when(!is.na(egu_number) ~ 0,
+                                                is.na(egu_number) ~ x)))
   }
   
   
   
-  
   # ZERO EXTREME LOAD HOURS #######
+  # Some load hours fall above the highest load bin or below the lowest one.
+  #   Their values are replaced with 0s.
   differences_final <- differences_final |>
-    mutate(across(contains("data"), ~ if_else(load_8760_col > max(ff_load_bin_key) | load_8760_col < min(ff_load_bin_key), 0, .x)))
-
+    mutate(
+      across(
+        contains("data"),
+        ~ if_else(
+          load_8760_col > max(ff_load_bin_key) | 
+            load_8760_col < min(ff_load_bin_key),
+          0,
+          .x
+        )
+      )
+    )
+  
   
   
   # OTHER STATS #########
   pct_hourly_load_change <- abs(hourly_load_reduction / bau_load_8760)
-  
-  
-  
-  
 
+  # Vector of total generation change in each hour
   hourly_resulting_generation_change <- differences_final |> 
-    summarize(data_generation_summed = sum(data_generation),
-              .by = datetime_8760_col) |> 
+    summarize(
+      data_generation_summed = sum(data_generation),
+      .by = datetime_8760_col
+    ) |> 
     pull(data_generation_summed)
   
+  # Signal to noise comes from regressing hourly load reduction (as input by
+  #   user, either directly or through the scenario they specify) onto the
+  #   generation change calculated by avertr
   signal_to_noise <- lm(
     hourly_load_reduction ~ hourly_resulting_generation_change
   ) |> 
@@ -518,61 +463,27 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   
   
   
-  
-  
-  
-  
-  avertr_results <- lst(differences_final, signal_to_noise, pct_hourly_load_change)
-  
-  
-  # Warnings
+  # WARNINGS ###########
   if (max(pct_hourly_load_change) > 0.15) {
-    message("Warning: At least one hour has a load change exceeding 15% of reference scenario load.")
+    message("Warning: At least one hour has a load change exceeding 15% of
+            reference scenario load.")
   }
-  if (max(new_load_8760) > max(ff_load_bin_key) | min(new_load_8760) < min(ff_load_bin_key)) {
-    message("Warning: At least one hour is outside of AVERT’s calcuable range. All such hours are assigned 0 values for their data.")
+  if (max(new_load_8760) > max(ff_load_bin_key) | 
+      min(new_load_8760) < min(ff_load_bin_key)) {
+    message("Warning: At least one hour is outside of the calculable range.
+            All calculated changes in such hours are set to 0.")
   }
+  
+  
+  
+  # COMBINE AND RETURN ############
+  avertr_results <- lst(
+    differences_final,
+    signal_to_noise,
+    pct_hourly_load_change
+  )
   
   return(avertr_results)
-  
-  
-  
-  
-  
-  
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-# # nei_efs_ap ##############
-# # We only want emission factors for the input year
-# nei_efs_ap <- nei_efs |> 
-#   select(`Full Name`:`ORSPL|Unit|Region`, contains("2023")) |> 
-#   select(!c(County, Generation2023, `Heat Input2023`))
-# 
-# # Get only the region from the ORSPL|Unit|Region column
-# nei_efs <- nei_efs |> 
-#   separate_wider_delim(
-#     `ORSPL|Unit|Region`,
-#     "|",
-#     names = c("ORISPL Code", "Unit Code", "Region")
-#   )
-# 
-# # And we want a list containing the NEI EFs for each region
-# nei_efs_ap <- nei_efs |> 
-#   nest(.by = `Region`) |> 
-#   pull(data)
-# 
-# # Set names
-# nei_efs_ap <- set_names(nei_efs_ap, rdf_name_vector)
 
