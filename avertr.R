@@ -47,7 +47,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   )
   
   infrequent_so2_event_egus_raw <- xlsx_cells(
-    "./avert-main-module-v4.3.xlsx",
+    avert_main_module_filepath,
     sheets = "Library"
   )
   
@@ -58,7 +58,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   if (is.null(hourly_load_reduction)) {
     # Capacity factors
     cfs <- xlsx_cells(
-      "./avert-main-module-v4.3.xlsx",
+      avert_main_module_filepath,
       sheets = "EERE_Default",
     )
     
@@ -393,18 +393,18 @@ avert <- function(project_year, project_region, project_type, project_capacity,
       (field == "ORSPL" | field == "Unit")
     )
   
-  # Tidy with unpivotr
-  infrequent_so2_event_egus <- infrequent_so2_event_egus |>
-    pack() |>
-    select(egu_number, value, field) |>
-    unpack() |>
-    spatter(field)
-  
-  infrequent_so2_event_egus <- infrequent_so2_event_egus |>
-    mutate(Unit = as.character(Unit))
-  
   # If there are any infrequent SO2 EGUs in this region and year...
   if (nrow(infrequent_so2_event_egus) > 0) {
+    
+    # Tidy with unpivotr
+    infrequent_so2_event_egus <- infrequent_so2_event_egus |>
+      pack() |>
+      select(egu_number, value, field) |>
+      unpack() |>
+      spatter(field)
+    
+    infrequent_so2_event_egus <- infrequent_so2_event_egus |>
+      mutate(Unit = as.character(Unit))
     
     # Left join, so keeping all rows from differences_final. Ensure that all
     #   EGUs from infrequent_so2_event_egus get matched, and that at most one
@@ -417,9 +417,12 @@ avert <- function(project_year, project_region, project_type, project_capacity,
         relationship = "many-to-one"
       )
     
+    # Replace all matches (i.e., rows where there's a successful join, s.t.
+    #   egu_number is not NA) with 0
     differences_final <- differences_final |> 
-      mutate(across(contains("data"), \(x) case_when(!is.na(egu_number) ~ 0,
-                                                is.na(egu_number) ~ x)))
+      mutate(
+        data_so2 = case_when(!is.na(egu_number) ~ 0, TRUE ~ data_so2)
+      )
   }
   
   
