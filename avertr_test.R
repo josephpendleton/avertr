@@ -1,4 +1,5 @@
 library(tidyverse)
+library(readxl)
 library(tidyxl)
 library(unpivotr)
 
@@ -198,7 +199,7 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
     "NH3"
   )
   
-
+  
   
   # Try it again in readxl. Read back in the sheets from online
   # readxl in the sheets. This should automatically remove blank cols at the
@@ -220,19 +221,89 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
   
   
   
+  browser()
   
-  # Bind avertr differences with the AVERT differences we just wrangled.
-  #   Relatoinship should be 1-to-one and no rows should be dropped.
-  test_joined_hourly <- differences_final |>
-    inner_join(
-      avert_differences_final_egu_hourly, by = join_by(
-        orispl_code == orspl,
-        unit_code == unit_id,
-        datetime_8760_col == timestamp
-      ),
-      relationship = "one-to-one",
-      unmatched = c("error", "error")
+  
+  
+  
+  
+  
+  avert_hourly_data <- data_measure_sheet_names |> 
+    map(
+      ~ read_excel(
+        avert_run_filepath,
+        sheet = .x,
+        col_names = FALSE,
+        na = c(" ", "Load outside of bin range")
+      )
     )
+  
+  
+  
+  
+  
+  
+  # The unit name, ORISPL code, and unit ID are split up across three header rows.
+  #   Read in the three and then concatenate them.
+  avert_differences_final_hourly_headers <- avert_hourly_data |> 
+    map(~ slice(.x, 1:3)) |> 
+    map(~ select(.x, !(...1:...7) & !(...9:...11))) |> 
+    map(map_chr, ~ str_flatten(.x, collapse = "|", na.rm = TRUE))
+  
+  # Read in all 8 data measures, assigning each sheet the column names created
+  #   above
+  avert_differences_final_hourly <- avert_hourly_data |> 
+    map(~ slice(.x, 4:8763)) |> 
+    map(~ select(.x, !(...1:...7) & !(...9:...11))) |> 
+    map(~ mutate(.x, ...8 = round_date(as_datetime(...8), unit = "hour"))) |> 
+    map(~ mutate(.x, across(!...8, as.numeric))) |> 
+    map(~ mutate(.x, across(!...8, \(col) {case_when(is.na(col) ~ 0, TRUE ~ col)}))) |> 
+    map2(avert_differences_final_hourly_headers, ~ set_names(.x, .y))
+  
+  # Pivot the sheets so that each EGU-hour pair is a row, and split up the column
+  #   with ORISPL, unit code, and name into three columns.
+  avert_differences_final_hourly <- avert_differences_final_hourly |> 
+    map2(
+      data_measure_sheet_names,
+      ~ pivot_longer(
+        .x,
+        !Timestamp,
+        names_to = "EGU",
+        values_to = .y)
+    ) |> 
+    map(
+      ~ separate_wider_delim(
+        .x,
+        EGU,
+        "|",
+        names = c("ORISPL Code", "Unit Code", "Unit Name")
+      )
+    )
+  
+  test_joined_hourly <- avert_differences_final_hourly |>
+    reduce(inner_join, by = join_by(Timestamp, `ORISPL Code`, `Unit Code`, `Unit Name`), unmatched = c("error", "error"), relationship = "one-to-one")
+  
+  
+  
+  
+  
+  
+  test_joined_hourly
+  
+  
+  
+  
+
+  
+  
+  # Left off here
+  
+  
+  
+  
+  
+  
+  
   
   
   
