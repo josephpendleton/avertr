@@ -6,6 +6,7 @@ library(unpivotr)
 
 
 avertr_test_annual <- function(avertr_results, avert_run_filepath) {
+  # Load elements of avertr_results list to environment
   list2env(avertr_results, envir = environment())
   
   # LOAD/PREPARE AVERT DATA ######
@@ -97,7 +98,7 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
     summarize(across(everything(), ~ max(.x, na.rm = TRUE)))
   
   # All rows where absolute percent errors are greater than 0.1%
-  absolute_pct_errors_above_0pt1_egu <- test_errors_egu |> 
+  absolute_pct_errors_above_01_egu <- test_errors_egu |> 
     mutate(across(contains("pct"), abs)) |> 
     filter(if_any(contains("pct"), \(x) x > 0.1))
   
@@ -143,38 +144,34 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
   error_summary_region <- test_errors_region |>
     select(contains("error"))
   
-  # All rows where absolute percent errors are greater than 0.1%
-  absolute_pct_errors_above_0pt1_region <- error_summary_region |> 
-    mutate(across(contains("pct"), abs)) |> 
-    filter(if_any(contains("pct"), \(x) x > 0.1))
+  # Get the number of data measures which had > 0.1% absolute error at the
+  #   region level
+  number_absolute_pct_errors_above_01_region <- error_summary_region |> 
+    select(contains("pct")) |> 
+    unlist() |> 
+    abs() |> 
+    {\(x) x > 0.1}() |> 
+    sum()
   
   
   
-  # WARN, COMBINE, AND RETURN #############
+  # MESSAGE, COMBINE, AND RETURN #############
+  message(paste(nrow(absolute_pct_errors_above_01_egu), "EGUs have a > 0.1% error for at least one of their data measures."))
+  
+  message(paste(number_absolute_pct_errors_above_01_region, "data measures have a regionwide percent error of > 0.1%."))
+  
   annual_test_results <- lst(
     error_summary_region,
     error_summary_table_egu,
     largest_absolute_errors_egu,
   )
   
-  # If there are with EGUS > 0.1% error, warn and add to list to be returned
-  if (nrow(absolute_pct_errors_above_0pt1_egu) > 0) {
-    message("Warning: At least one EGU has a percent error of > 0.1% for
-            at least one data measure.")
+  # If there are with EGUS > 0.1% error, warn and add the table of such hours to
+  #   the list to list to be returned
+  if (nrow(absolute_pct_errors_above_01_egu) > 0) {
     annual_test_results <- append(
       annual_test_results,
-      absolute_pct_errors_above_0pt1_egu
-    )
-  }
-  
-  # If there are any pollutants at the region level with > 0.1% error, warn and
-  #   add to list to be returned
-  if (nrow(absolute_pct_errors_above_0pt1_region) > 0) {
-    message("Warning: At least one data measure has a regionwide percent error
-    of > 0.1%.")
-    annual_test_results <- append(
-      annual_test_results,
-      absolute_pct_errors_above_0pt1_region
+      lst(absolute_pct_errors_above_01_egu)
     )
   }
   return(annual_test_results)
@@ -183,6 +180,7 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
 
 
 avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
+  # Load elements of avertr_results list to environment
   list2env(avertr_results, envir = environment())
   
   # LOAD/PREPARE AVERT DATA #############
@@ -199,35 +197,9 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
     "NH3"
   )
   
-  
-  
-  # Try it again in readxl. Read back in the sheets from online
-  # readxl in the sheets. This should automatically remove blank cols at the
-  #   end. Rows that should be read in are fixed.
-  # Make sure that it uses as least 8763 (or wtv) rows to guess types 
-  # AND BASE the number of cols it reads on the distinct number of EGUS in the
-  #   avertr test file. THis assumes regions match, but if they don't you'll
-  #   end up getting an error anyway when you try to join based on ORISPL and
-  #   unit id below.
-  # BEFORE even combining w header rows: Mutate across cols where
-  #   is.character (bc these are ones w the "Load outside
-  #   bin", should really only be first col) and then case when them to replace
-  #   the "Load outside bin" test w a 0 and coerce to numeric. Then mutate
-  #   across cols where there's any na. These cols are the ones w missing values
-  #   either from deleted SO2 events or missing bc load hour outside bin. Replace
-  #   NAs w 0.
-  
-  
-  
-  
-  
-  browser()
-  
-  
-  
-  
-  
-  
+  # Load the 8 data measure sheets. Treat blanks or the string "Load bin out of
+  #   range" as NA. This ensures that if there are any load bins outside of the
+  #   range, those hours are entirely filled with NAs.
   avert_hourly_data <- data_measure_sheet_names |> 
     map(
       ~ read_excel(
@@ -236,32 +208,40 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
         col_names = FALSE,
         na = c(" ", "Load outside of bin range")
       )
-    )
+    ) |> 
+    suppressMessages()
   
-  
-  
-  
-  
-  
-  # The unit name, ORISPL code, and unit ID are split up across three header rows.
-  #   Read in the three and then concatenate them.
+  # The unit name, ORISPL code, and unit ID are split up across three header
+  #   rows.
   avert_differences_final_hourly_headers <- avert_hourly_data |> 
+    # Grab these three header rows.
     map(~ slice(.x, 1:3)) |> 
+    # Then select only columns 8 and 12+. 8 contains the timestamp while 12+
+    #   contain all the actual EGU data.
     map(~ select(.x, !(...1:...7) & !(...9:...11))) |> 
+    # Then collapse the three header rows into one
     map(map_chr, ~ str_flatten(.x, collapse = "|", na.rm = TRUE))
   
-  # Read in all 8 data measures, assigning each sheet the column names created
-  #   above
+  # Clean the actual EGU data
   avert_differences_final_hourly <- avert_hourly_data |> 
+    # Grab the appropriate rows for the EGU data
     map(~ slice(.x, 4:8763)) |> 
+    # Select columns 8 and 12+, like above
     map(~ select(.x, !(...1:...7) & !(...9:...11))) |> 
+    # Change timestamp to datetime. Some of the values are slightly off the 
+    #   hour, so round them.
     map(~ mutate(.x, ...8 = round_date(as_datetime(...8), unit = "hour"))) |> 
-    map(~ mutate(.x, across(!...8, as.numeric))) |> 
+    # Mutate data columns to all be numeric
+    map(~ mutate(.x, across(!...8, as.numeric))) |>
+    # As mentioned above, all hours outside of the bin range are filled with
+    #   NAs, and these should be the only hours filled with NAs. Replace them
+    #   all with 0s.
     map(~ mutate(.x, across(!...8, \(col) {case_when(is.na(col) ~ 0, TRUE ~ col)}))) |> 
+    # Change the column names to align with the header column names we set up
     map2(avert_differences_final_hourly_headers, ~ set_names(.x, .y))
   
-  # Pivot the sheets so that each EGU-hour pair is a row, and split up the column
-  #   with ORISPL, unit code, and name into three columns.
+  # Pivot the sheets so that each EGU-hour pair is a row, and split up the 
+  #  column with ORISPL, unit ID, and name into three columns
   avert_differences_final_hourly <- avert_differences_final_hourly |> 
     map2(
       data_measure_sheet_names,
@@ -280,34 +260,47 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
       )
     )
   
-  test_joined_hourly <- avert_differences_final_hourly |>
-    reduce(inner_join, by = join_by(Timestamp, `ORISPL Code`, `Unit Code`, `Unit Name`), unmatched = c("error", "error"), relationship = "one-to-one")
+  # Change ORISPL Code to numeric
+  avert_differences_final_hourly <- map(
+    avert_differences_final_hourly,
+    ~ mutate(.x, `ORISPL Code` = as.numeric(`ORISPL Code`))
+  )
   
-  
-  
-  
-  
-  
-  test_joined_hourly
-  
-  
-  
-  
-
-  
-  
-  # Left off here
-  
-  
-  
-  
-  
-  
-  
+  # Take the list of the 8 data measure tables and join all of the tables to
+  #   one another until you have one big table. Relationship should be one-to-
+  #   one, and throw an error if any row is unmatched.
+  avert_differences_final_hourly <- avert_differences_final_hourly |>
+    reduce(
+      inner_join,
+      by = join_by(Timestamp, `ORISPL Code`, `Unit Code`, `Unit Name`),
+      unmatched = "error",
+      relationship = "one-to-one"
+    )
   
   
   
   # TESTING ###########
+  ## Join Results ==========
+  # Join the avertr hourly results to the AVERT hourly results we prepared above
+  #   by hour, ORISPL, and unit name. Join by unit name rather than unit code
+  #   because the incorrect unit code is given in the hourly results. Sometimes
+  #   unit names vary, but they're the same between the hourly AVERT results and 
+  #   avertr results. Relationship should be one-to-one and there should
+  #   be no unmatched rows.
+  test_joined_hourly <- inner_join(
+    differences_final,
+    avert_differences_final_hourly,
+    by = join_by(
+      datetime_8760_col == Timestamp,
+      orispl_code == `ORISPL Code`,
+      full_unit_name == `Unit Name`
+    ),
+    na_matches = "never",
+    unmatched = "error",
+    relationship = "one-to-one"
+  )
+  
+  
   ## Calculate Errors ==========
   test_errors_hourly <- test_joined_hourly |>
     mutate(
@@ -329,185 +322,53 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
       pct_nh3_error = (nh3_error / NH3) * 100
     )
   
-  ### summarize errors ---------
-  # Summary table of the errors between AVERT and avertr. Note that percent
-  #   errors may be NA where the AVERT value is 0. (To check, filter
-  #   for cases where percent error is NA but AVERT value is not 0. There should
-  #   be no such cases.)
-  test_errors_hourly |>
-    select(contains("error")) |>
+  
+  ## Summarize Errors ==========
+  # Summary table of the errors between avertr and AVERT.
+  error_summary_table_hourly <- test_errors_hourly |> 
+    select(contains("error")) |> 
     summary()
   
-  # Largest absolute error from each measure. (Note that the pct error
-  #   and error for each data measure may come from different rows.)
-  test_errors_hourly |>
-    select(contains("error")) |>
-    mutate(across(everything(), abs)) |>
-    summarize(across(everything(), ~ max(.x, na.rm = TRUE))) |>
-    print(width = Inf)
+  # Largest absolute error from each measure. (Note that the largest absolute
+  #   error for each data measure may come from different hours and/or EGUs.)
+  largest_absolute_errors_hourly <- test_errors_hourly |> 
+    select(contains("error")) |> 
+    mutate(across(everything(), abs)) |> 
+    summarize(across(everything(), ~ max(.x, na.rm = TRUE)))
   
-  # Histograms for all the percent errors
-  test_errors_hourly |>
-    select(contains("pct")) |>
-    iwalk(~ hist(.x, main = .y, breaks = 500))
+  # All rows where absolute errors are greater than 0.001, which should be the 
+  #   largest rounding error we get, since all data measure values in a given
+  #   hour are rounded to at least 3 decimal places in both AVERT and avertr, 
+  #   and there are seemingly cases where arbitrarily internal rounding
+  #   differences between Excel and R bumps a number up or down by 0.001 when
+  #   we round to 3 decimal places..
+  # Technically here we check for > 0.001000001 because in practice I've
+  #   found that there are many cases where the maximum error caps out at, e.g.,
+  #   0.00100000000000011, which is only slightly above the rounding error of
+  #   0.001 that we'd expect.
+  absolute_pct_errors_above_001_hourly <- test_errors_hourly |> 
+    mutate(across(contains("error") & !contains("pct"), abs)) |> 
+    filter(if_any(contains("error") & !contains("pct"), \(x) x > 0.001000001))
   
-  # All rows where absolute percent errors are greater than 0.1%
-  test_errors_hourly |>
-    mutate(across(contains("pct"), abs)) |>
-    filter(if_any(contains("pct"), \(x) x > 0.1))
+  
+  
+  # MESSAGE, COMBINE, AND RETURN #############
+  message(paste("There are", nrow(absolute_pct_errors_above_001_hourly), "cases where an EGU has a > 0.001 absolute error in a given hour for at least one of its data measures."))
+  
+  hourly_test_results <- lst(
+    error_summary_table_hourly,
+    largest_absolute_errors_hourly,
+  )
+  
+  # If there are with EGUS > 0.001 absolute error, add the table of such hours
+  #   to the list to be returned
+  if (nrow(absolute_pct_errors_above_001_hourly) > 0) {
+    hourly_test_results <- append(
+      hourly_test_results,
+      lst(absolute_pct_errors_above_001_hourly)
+    )
+  }
+  return(hourly_test_results)
 }
-
-
-
-
-
-
-# TIDYXL VERSION
-
-# avert_differences_final_egu_hourly <- map(
-#   data_measure_sheet_names,
-#   ~ xlsx_cells(avert_run_filepath, sheets = .x)
-# )
-# 
-# browser()
-# 
-# 
-# 
-# 
-# avert_differences_final_egu_hourlyALT_TEST <- map2(
-#   avert_differences_final_egu_hourly,
-#   data_measure_sheet_names,
-#   function(data_measure_table, data_measure_name) {
-#     data_measure_table <- data_measure_table |>
-#       # Filters out extra rows at the end, and selects only the columns with
-#       #   data (>= 12) and the column with the datetime (8).
-#       filter(row <= 8763 & (col >= 12 | col == 8)) |>
-#       # Datetime information doesn't appear in the date column, instead only
-#       #   in the content column. I think this isn't supposed to happen. But
-#       #   anyway, for those cells, change data_type to have "content." Now
-#       #   when we pack() below, the data_type column tells pack() to pull
-#       #   from the content column.
-#       mutate(
-#         data_type = if_else(
-#           data_type == "date (ISO8601)",
-#           "content",
-#           data_type
-#         )
-#       ) |>
-#       behead("left", "timestamp") |>
-#       behead("up", "orspl") |>
-#       behead("up", "unit_id") |>
-#       behead("up", "unit_name") |>
-#       mutate(timestamp = as_datetime(timestamp)) |>
-#       mutate(
-#         numeric = if_else(character == "Load outside of bin range", 0, numeric),
-#         character = if_else(character == "Load outside of bin range", NA, character)
-#       ) |> 
-#       pack() |>
-#       select(row, value, timestamp, orspl, unit_id, unit_name) |>
-#       unpack() |>
-#       mutate(data_measure = data_measure_name) |>
-#       spatter(data_measure) |>
-#       select(!row)
-#     
-#     return(data_measure_table)
-#   }
-# )
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# # See if it loads in entirely blank cols like GT. If it does you'll need to
-# #   remove those blanks. And then consider just if_else to change all blanks
-# #   to have is_blank false and numeric 0, and change all "load bin" ones to
-# #   have NA in character and 0 in numeric. Double check the remaining cols to
-# #   ensure that they'll be okay, but should be fine.
-# 
-# # Tidy each of the data measure tables with unpivotr
-# avert_differences_final_egu_hourly <- map2(
-#   avert_differences_final_egu_hourly,
-#   data_measure_sheet_names,
-#   function(data_measure_table, data_measure_name) {
-#     data_measure_table <- data_measure_table |>
-#       # Filters out extra rows at the end, and selects only the columns with
-#       #   data (>= 12) and the column with the datetime (8).
-#       filter(row <= 8763 & (col >= 12 | col == 8)) |>
-#       # Datetime information doesn't appear in the date column, instead only
-#       #   in the content column. I think this isn't supposed to happen. But
-#       #   anyway, for those cells, change data_type to have "content." Now
-#       #   when we pack() below, the data_type column tells pack() to pull
-#       #   from the content column.
-#       mutate(
-#         data_type = if_else(
-#           data_type == "date (ISO8601)",
-#           "content",
-#           data_type
-#         )
-#       ) |>
-#       behead("left", "timestamp") |>
-#       behead("up", "orspl") |>
-#       behead("up", "unit_id") |>
-#       behead("up", "unit_name") |>
-#       mutate(timestamp = as_datetime(timestamp)) |>
-#       # Filter out any cases where the load is outside bin range. These cells
-#       #   either contain the below string, or are blank.
-#       filter(
-#         !(!is.na(character) & character == "Load outside of bin range") &
-#           !is_blank
-#       ) |>
-#       pack() |>
-#       select(row, value, timestamp, orspl, unit_id, unit_name) |>
-#       unpack() |>
-#       mutate(data_measure = data_measure_name) |>
-#       spatter(data_measure) |>
-#       select(!row)
-#     
-#     return(data_measure_table)
-#   }
-# )
-# 
-# 
-# 
-# 
-# 
-# # MAKE SURE you're accounting for the fact that rare SO2 plants have blanks,
-# #   not 0s.
-# 
-# 
-# 
-# 
-# # Add join safety conditions?
-# avert_differences_final_egu_hourly <- avert_differences_final_egu_hourly |>
-#   reduce(left_join, by = join_by(timestamp, orspl, unit_id, unit_name))
-# 
-# avert_differences_final_egu_hourly <- avert_differences_final_egu_hourly |>
-#   mutate(unit_id = word(unit_name, -1))
-# 
-# avert_differences_final_egu_hourly <- avert_differences_final_egu_hourly |>
-#   mutate(timestamp = round_date(timestamp, unit = "hour"))
+  
 

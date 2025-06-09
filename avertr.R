@@ -468,13 +468,11 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   
   # WARNINGS ###########
   if (max(pct_hourly_load_change) > 0.15) {
-    message("Warning: At least one hour has a load change exceeding 15% of
-            reference scenario load.")
+    message("Warning: At least one hour has a load change exceeding 15% of reference scenario load.")
   }
   if (max(new_load_8760) > max(ff_load_bin_key) | 
       min(new_load_8760) < min(ff_load_bin_key)) {
-    message("Warning: At least one hour is outside of the calculable range.
-            All calculated changes in such hours are set to 0.")
+    message("Warning: At least one hour is outside of the calculable range. All calculated changes in such hours are set to 0.")
   }
   
   
