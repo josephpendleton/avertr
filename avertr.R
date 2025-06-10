@@ -1,12 +1,36 @@
+# A script to run an avertr scenario. project_year is a number representing the
+#   the year of the project. project_region is a string representing the region
+#   of the project; be sure to use the standard format of the region name
+#   exactly as it appears in AVERT resources. project_capacity is a number 
+#   representing the capacity of the project. avert_main_module_filepath is the 
+#   string of a filepath to an empty AVERT v4.3 Main Module *which has been 
+#   converted to .xlsx*.
+# project_year, project_region, project_type, and project_capacity are together
+#   used to generate an 8760 reduction in net load based on the default capacity
+#   factors contained in the AVERT Main Module. project_type can be
+#   "Onshore Wind", "Offshore Wind", "Utility PV", or "Rooftop PV".
+#   project_capacity is a number in MW. If instead you want to directly use your
+#   own 8760 reduction in net load, pass a numeric vector to
+#   hourly_load_reduction; if you do this, project_type and project_capacity are
+#   ignored. This does not currently account for T&D losses, so you'll need to
+#   manually adjust for them if this is supposed to represent e.g. reduction in
+#   demand. It also means results will differ from AVERT if you don't adjust.
+#   The AVERT User Manual explains how T&D adjustments are made. 
+# project_year and project_region are also used to find the appropriate avertr
+#   RDF to use, assuming that you have downloaded a standard RDF and stored it
+#   in a subdirectory of your current directory named "avertr_rdfs." However, to
+#   override this behavior, simply directly enter the string of a filepath to
+#   the desired avertr RDF.
+
 library(tidyverse)
 library(tidyxl)
 library(unpivotr)
 
 
 
-avert <- function(project_year, project_region, project_type, project_capacity,
-                  avert_main_module_filepath, hourly_load_reduction = NULL,
-                  avertr_rdf_filepath = NULL) {
+avert <- function(project_year, project_region, project_type = NULL,
+                  project_capacity = NULL, avert_main_module_filepath,
+                  hourly_load_reduction = NULL, avertr_rdf_filepath = NULL) {
   
   # DEFINE/LOAD OBJECTS ######
   
@@ -450,20 +474,23 @@ avert <- function(project_year, project_region, project_type, project_capacity,
   
   # OTHER STATS #########
   pct_hourly_load_change <- abs(hourly_load_reduction / bau_load_8760)
-
+  
   # Vector of total generation change in each hour
   hourly_resulting_generation_change <- differences_final |> 
     summarize(
       data_generation_summed = sum(data_generation),
       .by = datetime_8760_col
     ) |> 
+    arrange(datetime_8760_col) |> 
     pull(data_generation_summed)
   
-  # Signal to noise comes from regressing hourly load reduction (as input by
-  #   user, either directly or through the scenario they specify) onto the
-  #   generation change calculated by avertr
+  # Signal to noise comes from regressing the generation change calculated by
+  #   avertr onto the hourly load change (as input by user, either directly
+  #   or through the scenario they specify).
+  hourly_load_change <- (-1 * hourly_load_reduction)
+  
   signal_to_noise <- lm(
-    hourly_load_reduction ~ hourly_resulting_generation_change
+    hourly_resulting_generation_change ~ hourly_load_change
   ) |> 
     summary()
   

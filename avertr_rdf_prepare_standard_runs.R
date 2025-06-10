@@ -1,5 +1,13 @@
-# A script to run avertr_rdf_prepare.R and save the results for the "standard" RDFs
-#   provided by EPA.
+# A script to generate the "standard" avertr RDFs. These are just the standard
+#   AVERT RDFs, prepared for use with avertr, and named in a special way so that
+#   you can easily run an avertr scenario without having to specify a new
+#   filepath each time (see header to avertr.R for more information.) As such,
+#   the naming of these files is significant, since avertr.R uses it to
+#   determine which avertr RDF to read in.
+# Currently only running for 2023.
+
+library(tidyverse)
+
 
 
 source("./avertr_rdf_prepare.R")

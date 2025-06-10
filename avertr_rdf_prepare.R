@@ -1,3 +1,19 @@
+# A script to convert AVERT regional data files (RDFs) into avertr RDFs.
+#   rdf_directory_filepath is the string of a filepath to a directory containing
+#   all (and only) a set of AVERT RDFs for a given year. rdf_name_vector is a
+#   vector of strings which it uses to name the avertr RDFs. This vector must
+#   have the same length as the number of files in rdf_directory_filepath, and
+#   the order of the names must correspond to the alphabetical order of the
+#   AVERT RDFs located in rdf_directory_filepath. E.g., if 
+#   rdf_directory_filepath contains AVERT RDFs named B.xlsx, A.xlsx, and C.xlsx,
+#   and you want to name them "rdf1", "rdf2", and "rdf3" respectively, pass
+#   rdf_name_vector = c("rdf2", "rdf1", "rdf3"). rdfs_year is a numeric vector
+#   representing the year of the AVERT RDFs. It is used at the very beginning
+#   to generate the vector of hours in the year.
+# I've currently only tested this using rdf_directory_filepath as a directory
+#   containing all 14 AVERT RDFs for 2023. This script is NOT yet robust to
+#   leap years. Takes ~5 mins to run on my machine.
+
 library(tidyverse)
 library(tidyxl)
 library(unpivotr)
@@ -8,7 +24,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   # DEFINE/LOAD OBJECTS ############
   # Vector of each hour of the year 2023
   datetime_8760 <- seq(
-    from = ymd_hms("2023-01-01 00:00:00"),
+    from = ymd_hms(paste0(rdfs_year, "-01-01 00:00:00")),
     by = "1 hour",
     length.out = 8760
   )

@@ -1,3 +1,11 @@
+# A script to test avertr results against AVERT results. avertr_test_annual()
+#   compares annual results for each EGU and regionwide between avertr and AVERT.
+#   avertr_test_hourly() compares the change in emissions (and generation and
+#   heat input) for each EGU, for each hour, between avertr and AVERT. It takes
+#   longer to run. avertr_results is a list returned by an avertr run.
+#   avert_run_filepath is the string of a filepath to an AVERT main module where
+#   a scenario has been run, *saved as a .xlsx file*.
+
 library(tidyverse)
 library(readxl)
 library(tidyxl)
