@@ -293,6 +293,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
       .x,
       .y,
       join_by(ff_load_bin_8760_col == ff_load_bin_col),
+      na_matches = "never",
       unmatched = c("error", "drop"),
       relationship = "many-to-many"
     )

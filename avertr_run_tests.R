@@ -19,25 +19,28 @@ end_time - start_time
 # TEST ##########
 source("./avertr_test.R")
 
-start_time_test <- Sys.time()
 
-# Enter the filepath to the AVERT main module workbook (converted from its
-#   default .xlsb format to .xlsx) where you've run the scenario
-#   that you wish to test avertr.R's output against
-#test_results_annual <- avertr_test_annual(avertred, "./test_scenarios/6000MW_OSW_NY_06072025.xlsx")
+## Annual =============
+start_time_test_annual <- Sys.time()
 
-test_results_hourly <- avertr_test_hourly(avertred, "./test_scenarios/6000MW_OSW_NY_06072025.xlsx")
+test_results_annual <- avertr_test_annual(
+  avertr_results = avertred,
+  avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_06072025.xlsx"
+)
 
-end_time_test <- Sys.time()
-end_time_test - start_time_test
-
-test_results_hourly$
+end_time_test_annual <- Sys.time()
+end_time_test_annual - start_time_test_annual
 
 
+## Hourly ============
+start_time_test_hourly <- Sys.time()
 
-# MAKE SURE TO specifically check the excluded hours and plants
+test_results_hourly <- avertr_test_hourly(
+  avertr_results = avertred,
+  avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_06072025.xlsx"
+)
 
-# TEST if the first join in the main test function can join based on unit code
-
+end_time_test_hourly <- Sys.time()
+end_time_test_hourly - start_time_test_hourly
 
 

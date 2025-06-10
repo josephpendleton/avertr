@@ -159,6 +159,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     ff_load_bin_8760,
     load_bin_data_ap_region,
     by = join_by(ff_load_bin_8760_col == ff_load_bin_col),
+    na_matches = "never",
     unmatched = c("error", "drop"),
     relationship = "many-to-many"
   )
@@ -324,6 +325,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
     inner_join(
       nei_efs,
       by = join_by(orispl_code == orspl, unit_code == unit),
+      na_matches = "never",
       unmatched = c("error", "drop"),
       relationship = "many-to-one"
     )
@@ -413,6 +415,7 @@ avert <- function(project_year, project_region, project_type, project_capacity,
       left_join(
         infrequent_so2_event_egus,
         by = join_by(orispl_code == ORSPL, unit_code == Unit),
+        na_matches = "never",
         unmatched = "error",
         relationship = "many-to-one"
       )

@@ -32,8 +32,9 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
   
   
   # AGGREGATE TO YEAR #######
-  # avertr.R gives each EGU's output for each hour of the year, but we want annual
-  #   totals, so we aggregate over time. We get annual data for each EGU.
+  # avertr.R gives each EGU's output for each hour of the year, but we want 
+  #   annual totals, so we aggregate over time. We end up with annual data for
+  #   each EGU.
   differences_final_egu <- differences_final |> 
     select(!c(load_8760_col:fuel_type)) |> 
     summarize(
@@ -46,10 +47,12 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
   # TESTING #######
   ## Unit Level ===========
   ### join results ----------
-  # Join the avertr results to the AVERT summary sheet by ORISPL and unit ID. If
-  #   there's not a 1-to-1 relationship (i.e., a different number of EGUs between
-  #   the AVERT and avertr outputs), or if an EGU from either avertr or AVERT
-  #   fails to join, it throws an error
+  # Join the avertr results to the AVERT summary sheet by ORISPL and unit name.
+  #   Join by unit name rather than unit code because the incorrect unit code is
+  #   given in the AVERT results. Sometimes unit names vary, but they're the
+  #   same between the  AVERT results and  avertr results. If there's not a
+  #   1-to-1 relationship or if an EGU from either avertr or AVERT fails to
+  #   join, it throws an error.
   test_joined_egu <- avert_differences_final_egu |> 
     inner_join(
       differences_final_egu,
@@ -104,7 +107,7 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
   
   
   ## Region Level ==========
-  # Now sum across all EGUs in teh region to aggregate results to the region
+  # Now sum across all EGUs in the region to aggregate results to the region
   #   level. We do this rather than reading in the 1_Annual sheet because the
   #   results in that sheet are substantially rounded.
   ### aggregate to region --------
@@ -150,7 +153,7 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
     select(contains("pct")) |> 
     unlist() |> 
     abs() |> 
-    {\(x) x > 0.1}() |> 
+    (\(x) x > 0.1)() |> 
     sum()
   
   
@@ -166,8 +169,8 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
     largest_absolute_errors_egu,
   )
   
-  # If there are with EGUS > 0.1% error, warn and add the table of such hours to
-  #   the list to list to be returned
+  # If there are with EGUS > 0.1% error, add the table of such hours to the list
+  #   to list to be returned
   if (nrow(absolute_pct_errors_above_01_egu) > 0) {
     annual_test_results <- append(
       annual_test_results,
@@ -273,6 +276,7 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
     reduce(
       inner_join,
       by = join_by(Timestamp, `ORISPL Code`, `Unit Code`, `Unit Name`),
+      na_matches = "never",
       unmatched = "error",
       relationship = "one-to-one"
     )
@@ -339,9 +343,9 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
   # All rows where absolute errors are greater than 0.001, which should be the 
   #   largest rounding error we get, since all data measure values in a given
   #   hour are rounded to at least 3 decimal places in both AVERT and avertr, 
-  #   and there are seemingly cases where arbitrarily internal rounding
+  #   and there are seemingly cases where arbitrary internal rounding
   #   differences between Excel and R bumps a number up or down by 0.001 when
-  #   we round to 3 decimal places..
+  #   we round to 3 decimal places.
   # Technically here we check for > 0.001000001 because in practice I've
   #   found that there are many cases where the maximum error caps out at, e.g.,
   #   0.00100000000000011, which is only slightly above the rounding error of
