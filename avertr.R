@@ -9,7 +9,8 @@
 #   used to generate an 8760 reduction in net load based on the default capacity
 #   factors contained in the AVERT Main Module. project_type can be
 #   "Onshore Wind", "Offshore Wind", "Utility PV", or "Rooftop PV".
-#   project_capacity is a number in MW. If instead you want to directly use your
+#   project_capacity is a number in MW. Note that Rooftop PV does not yet
+#   account for T&D losses. If instead you want to directly use your
 #   own 8760 reduction in net load, pass a numeric vector to
 #   hourly_load_reduction; if you do this, project_type and project_capacity are
 #   ignored. This does not currently account for T&D losses, so you'll need to
@@ -133,13 +134,16 @@ avert <- function(project_year, project_region, project_type = NULL,
     # For each hour of the year
     for (i in 1:8760) {
       
-      # A bit of a hack, but if the load is larger than the largest ff load bin,
-      #   simply assign it the highest load bin. If it's lowest than the lowest
-      #   load bin, assign it the lowest load bin. These hours get
-      #   entirely zeroed out in "ZERO EXTREME LOAD HOURS" below.
-      if (load_8760[i] > max(ff_load_bin_key)) {
+      # A bit of a hack, but if the load is higher than or equal to the highest
+      #   ff load bin, simply assign it the highest load bin. If it's lower than
+      #   or equal to the lowest load bin, assign it the lowest load bin. These 
+      #   hours get  zeroed out in "ZERO EXTREME LOAD HOURS" below. Note that
+      #   before they are zeroed out, the highest load bin hours have NA values
+      #   for all their data, since in add_next_bin() from avertr_rdf_prepare.R
+      #   we set the "next" load bin of the highest load bin to NA.
+      if (load_8760[i] >= max(ff_load_bin_key)) {
         ff_load_bin_8760[i] <- max(ff_load_bin_key)
-      } else if (load_8760[i] < min(ff_load_bin_key)) {
+      } else if (load_8760[i] <= min(ff_load_bin_key)) {
         ff_load_bin_8760[i] <- min(ff_load_bin_key)
       } else {
         # Gives a vector containing the difference between raw load and each
@@ -222,7 +226,7 @@ avert <- function(project_year, project_region, project_type = NULL,
     # For the rows in the non-ozone season, deselect the ozone season data
     non <- non |> 
       select(datetime_8760_col:data_next_bin_generation, contains("non")) |> 
-      # Rename so that we can easily bind rows belo
+      # Rename so that we can easily bind rows below
       rename_with(~ str_replace(., "_non", ""))
     
     # Bind rows, re-order by time
@@ -456,13 +460,17 @@ avert <- function(project_year, project_region, project_type = NULL,
   
   # ZERO EXTREME LOAD HOURS #######
   # Some load hours fall above the highest load bin or below the lowest one.
-  #   Their values are replaced with 0s.
+  #   Their values are replaced with 0s. Note that we do not zero the results if
+  #   load exactly equals the minimum load bin (to mirror AVERT's behavior).
+  #   If load exactly equals the highest load bin, you get an error in AVERT, so
+  #   we do zero those cases (not sure how else we'd deal with them since
+  #   there's no next load bin to interpolate with.)
   differences_final <- differences_final |>
     mutate(
       across(
         contains("data"),
         ~ if_else(
-          load_8760_col > max(ff_load_bin_key) | 
+          load_8760_col >= max(ff_load_bin_key) | 
             load_8760_col < min(ff_load_bin_key),
           0,
           .x
@@ -473,7 +481,7 @@ avert <- function(project_year, project_region, project_type = NULL,
   
   
   # OTHER STATS #########
-  pct_hourly_load_change <- abs(hourly_load_reduction / bau_load_8760)
+  pct_hourly_load_reduction <- hourly_load_reduction / bau_load_8760
   
   # Vector of total generation change in each hour
   hourly_resulting_generation_change <- differences_final |> 
@@ -497,12 +505,12 @@ avert <- function(project_year, project_region, project_type = NULL,
   
   
   # WARNINGS ###########
-  if (max(pct_hourly_load_change) > 0.15) {
+  if (max(abs(pct_hourly_load_reduction)) > 0.15) {
     message("Warning: At least one hour has a load change exceeding 15% of reference scenario load.")
   }
   if (max(new_load_8760) > max(ff_load_bin_key) | 
       min(new_load_8760) < min(ff_load_bin_key)) {
-    message("Warning: At least one hour is outside of the calculable range. All calculated changes in such hours are set to 0.")
+    message("Warning: At least one hour is outside of the calculable range. All results in such hours are set to 0.")
   }
   
   
@@ -511,7 +519,7 @@ avert <- function(project_year, project_region, project_type = NULL,
   avertr_results <- lst(
     differences_final,
     signal_to_noise,
-    pct_hourly_load_change
+    pct_hourly_load_reduction
   )
   
   return(avertr_results)

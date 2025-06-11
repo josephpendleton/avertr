@@ -348,10 +348,10 @@ avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
     mutate(across(everything(), abs)) |> 
     summarize(across(everything(), ~ max(.x, na.rm = TRUE)))
   
-  # All rows where absolute errors are greater than 0.001, which should be the 
-  #   largest rounding error we get, since all data measure values in a given
-  #   hour are rounded to at least 3 decimal places in both AVERT and avertr, 
-  #   and there are seemingly cases where arbitrary internal rounding
+  # All rows where absolute errors are greater than 0.001, which should often be 
+  #   the largest rounding error we get, since all data measure values in a 
+  #   givenhour are rounded to at least 3 decimal places in both AVERT and 
+  #   avertr, and there are seemingly cases where arbitrary internal rounding
   #   differences between Excel and R bumps a number up or down by 0.001 when
   #   we round to 3 decimal places.
   # Technically here we check for > 0.001000001 because in practice I've

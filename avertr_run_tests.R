@@ -1,4 +1,4 @@
-# A script to run some test on various avertr scenarios to ensure that they
+# A script to run some tests on various avertr scenarios to ensure that they
 #   match with their analogous AVERT scenarios. Mostly for internal use, cheking
 #   the tool, etc.
 
@@ -33,12 +33,13 @@ osw_6000_ny_test_hourly <- avertr_test_hourly(
 
 
 
-# 500 MW FLAT LOAD REDUCTION CA #############
+# 500 MW FLAT LOAD REDUCTION CALIFORNIA #############
 ## Run avertr Scenario ===========
 flat_500_ca <- avert(
   project_year = 2023,
   project_region = "California",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  # Applying the Western Interconnect T&D loss that AVERT applies 
   hourly_load_reduction = rep((500 / (1 - .0867)), 8760),
 )
 
@@ -69,20 +70,71 @@ utilitypv_900_rocky <- avert(
 )
 
 
+## Test =============
+### annual -----------
+utilitypv_900_rocky_test_annual <- avertr_test_annual(
+  avertr_results = utilitypv_900_rocky,
+  avert_run_filepath = "./test_scenarios/900MW_UPV_RM_061025.xlsx"
+)
 
-# TEST ALL EQUAL w directly passing filepath
+
+### hourly -----------
+utilitypv_900_rocky_test_hourly <- avertr_test_hourly(
+  avertr_results = utilitypv_900_rocky,
+  avert_run_filepath = "./test_scenarios/900MW_UPV_RM_061025.xlsx"
+)
+
+
+
+# 20 MW ROOFTOP PV TEXAS #############
+## Run avertr Scenario ===========
+rooftoppv_20_texas <- avert(
+  project_year = 2023,
+  project_region = "Texas",
+  project_type = "Rooftop PV",
+  project_capacity = 20,
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+)
 
 ## Test =============
 ### annual -----------
+rooftoppv_20_texas_annual <- avertr_test_annual(
+  rooftoppv_20_texas,
+  avert_run_filepath = "./test_scenarios/20MW_RPV_TX_06112025.xlsx"
+)
 
 ### hourly -----------
+rooftoppv_20_texas_hourly <- avertr_test_hourly(
+  rooftoppv_20_texas,
+  avert_run_filepath = "./test_scenarios/20MW_RPV_TX_06112025.xlsx"
+)
 
 
 
+# 2193 MW FLAT LOAD REDUCTION NEW ENGLAND #############
+# This scenario is special because in the first hour of the year the new net
+#   load exactly equals the lowest load bin.
+## Run avertr Scenario ===========
+flat_2193_ne <- avert(
+  project_year = 2023,
+  project_region = "New England",
+  hourly_load_reduction = rep(2193, 8760),
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+)
 
 
+## Test =============
+### annual -----------
+flat_2193_ne_annual <- avertr_test_annual(
+  flat_2193_ne,
+  avert_run_filepath = "./test_scenarios/2193MW_flat_load_reduction_NE.xlsx"
+)
 
-
+### hourly -----------
+flat_2193_ne_hourly <- avertr_test_hourly(
+  flat_2193_ne,
+  avert_run_filepath = "./test_scenarios/2193MW_flat_load_reduction_NE.xlsx"
+)
 
 
 
