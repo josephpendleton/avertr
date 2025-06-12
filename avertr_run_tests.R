@@ -92,7 +92,8 @@ rooftoppv_20_texas <- avert(
   project_year = 2023,
   project_region = "Texas",
   project_type = "Rooftop PV",
-  project_capacity = 20,
+  # Applying the Western Interconnect T&D loss that AVERT applies
+  project_capacity = (20 / (1 - 0.0458)),
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
 )
 
@@ -154,4 +155,5 @@ avert(
 ### annual -----------
 
 ### hourly -----------
+
 
