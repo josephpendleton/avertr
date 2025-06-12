@@ -1,4 +1,4 @@
-# A script to convert AVERT regional data files (RDFs) into avertr RDFs.
+# A function to convert AVERT regional data files (RDFs) into avertr RDFs.
 #   rdf_directory_filepath is the string of a filepath to a directory containing
 #   all (and only) a set of AVERT RDFs for a given year. rdf_name_vector is a
 #   vector of strings which it uses to name the avertr RDFs. This vector must
@@ -7,7 +7,7 @@
 #   AVERT RDFs located in rdf_directory_filepath. E.g., if 
 #   rdf_directory_filepath contains AVERT RDFs named B.xlsx, A.xlsx, and C.xlsx,
 #   and you want to name them "rdf1", "rdf2", and "rdf3" respectively, pass
-#   rdf_name_vector = c("rdf2", "rdf1", "rdf3"). rdfs_year is a numeric vector
+#   rdf_name_vector = c("rdf2", "rdf1", "rdf3"). rdfs_year is a number
 #   representing the year of the AVERT RDFs. It is used at the very beginning
 #   to generate the vector of hours in the year.
 # I've currently only tested this using rdf_directory_filepath as a directory
