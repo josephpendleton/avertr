@@ -1,15 +1,12 @@
-(Temporary version of the README. Should change later.)
+Quick overview of how to use avertr. You should also consult the headers of the scripts. This is a temporary and rough version of the README file.
 
 1. Clone this repository.
-2. Add to it a subdirectory named regional_data_files which contains all (and only) the AVERT regional data files for a given year.
-3. Add to it an empty download of the most recent version (4.3 as of now) of the AVERT Main Module WHICH YOU HAVE CONVERETED TO A .xlsx FILE! It will download as a .xlsb, you have to convert it.
-4. Run avertr_setup.R. This generates data for the business-as-usual scenario for each region.
-5. Open avertr.R. Run it to define the avert() function.
-6. Run the avert() function. (For now, only works with New York region in 2023.) The final output is the tibble differences_final. Each row gives you the change in the prouction of each measured pollutant (plus generation and heat input) in a given hour, for a given generating unit. So the number of rows should be 8760 * (number of generating units in the region).
-7. If you want to test your results against results from AVERT, use avertr_test.R.
+2. Add to it a subdirectory named regional_data_files which contains all (and only) the AVERT regional data files for a given year. So far I've only tested this for the 14 2023 AVERT regional data files.
+3. Add to it an empty download of the most recent version (4.3 as of now) of the AVERT Main Module which you have converted to a .xlsx file. (It will download as a .xlsb, you have to convert it.)
+4. Create a folder named avertr_rdfs. Run avertr_rdf_prepare_standard_runs.R, which sources avertr_rdf_prepare.R. It takes about five minutes to run on my computer. This generates and saves avertr's version of the AVERT regional data files. It currently only works for all 14 2023 regional data files.
+5. Use the avert() function to run AVERT scenarios in R!
+6. If you want to test your results against results from AVERT, use the functions defined in avertr_test.R. avertr_run_tests.R contains some such tests I've run, although of course the AVERT runs are not included in this remote, so you'll need to generate them yourself if you want to run the tests yourself.
 
-Important notes:
-Not yet robust to leap years
-Doesn't yet return R^2 and some other important values
-Haven't tested on limited scenarios
-Still working on making input and general workflow easier for the user
+Notes:
+- T&D losses haven't been fully incorporated into avertr yet, so some inputs (notably Rooftop PV) will look different between avertr and AVERT.
+- The 14 2023 avertr RDFs are somewhat large — together they take up 5.5 GB on my disk.
