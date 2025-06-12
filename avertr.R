@@ -2,9 +2,9 @@
 #   the year of the project. project_region is a string representing the region
 #   of the project; be sure to use the standard format of the region name
 #   exactly as it appears in AVERT resources. project_capacity is a number 
-#   representing the capacity of the project. avert_main_module_filepath is the 
-#   string of a filepath to an empty AVERT v4.3 Main Module *which has been 
-#   converted to .xlsx*.
+#   representing the capacity of the project (in MW). avert_main_module_filepath
+#   is the string of a filepath to an empty AVERT v4.3 Main Module *which has  
+#   been converted to .xlsx*.
 # project_year, project_region, project_type, and project_capacity are together
 #   used to generate an 8760 reduction in net load based on the default capacity
 #   factors contained in the AVERT Main Module. project_type can be
@@ -22,6 +22,17 @@
 #   in a subdirectory of your current directory named "avertr_rdfs." However, to
 #   override this behavior, simply directly enter the string of a filepath to
 #   the desired avertr RDF.
+# avertr() returns a list containing three objects. differences_final is a
+#   tibble of each EGU's change in emissions (and generation and heat) in each
+#   hour of the year. It can be easily summarized to compute aggregate emissions.
+#   signal_to_noise is the summary of a linear model of the hourly load change 
+#   calculated by avertr regressed onto the hourly load change input by the 
+#   user. Its R^2 statistic can be used to assess the quality of the run. See 
+#   the AVERT User Manual for more details on the signal-to-noise diagnostic. 
+#   Finally, pct_hourly_load_reduction gives the percent reduction in load (as 
+#   requested by the user, not as output by the model) for ecah hour of the 
+#   year. You can check this to ensure that you aren't requesting too much of a
+#   load change from avertr.
 
 library(tidyverse)
 library(tidyxl)
