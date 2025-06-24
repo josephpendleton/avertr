@@ -537,3 +537,186 @@ avert <- function(project_year, project_region, project_type = NULL,
 }
 
 
+generate_hourly_load_reduction <- function(
+    project_year,
+    project_region,
+    avert_main_module_filepath,
+    avertr_rdf_filepath = NULL,
+    
+    # Constrain to be number 0 to 1
+    apply_reduction_top_x_pct_hours = 0,
+    # Constrain to be a number 0 to 1
+    reduce_x_pct_in_top_hours = 0,
+    
+    reduce_annual_generation_by_x_gwh = 0,
+    reduce_each_hour_by_x_mw = 0,
+    
+    onshore_wind_capacity_mw = 0,
+    offshore_wind_capacity_mw = 0,
+    utility_solar_pv_capacity_mw = 0,
+    rooftop_solar_pv_capacity_mw = 0,
+    
+    pair_solar_with_storage = TRUE,
+    utility_scale_storage_capacity = 0,
+    distributed_storage_capacity = 0,
+    duration = 4,
+    charging_pattern = "Midday Charging",
+    # Not yet worrying about limiting charging on selected months or weekdays/ends
+    max_allowable_discharge_cylces_per_year = 150,
+    round_trip_efficiency = 0.85,
+    depth_of_discharge = 0.80,
+    
+    project_type = NULL,
+    project_capacity = NULL,
+) {
+  
+  # DEFINE/LOAD OBJECTS ######
+  
+  load_bin_data_ap_region <- read_rds(avertr_rdf_filepath) |> 
+    pluck(paste0("load_bin_data_ap_", project_region))
+  
+  bau_case_ap_region <- read_rds(avertr_rdf_filepath) |> 
+    pluck(paste0("bau_case_ap_", project_region))
+  
+  # Vector of each hour of the year 2023
+  datetime_8760 <- seq(
+    from = ymd_hms("2023-01-01 00:00:00"),
+    by = "1 hour",
+    length.out = 8760
+  )
+  
+  # This is the BAU load
+  bau_load_8760 <- bau_case_ap_region |> 
+    distinct(datetime_8760_col, load_8760_col) |> 
+    pull(load_8760_col)
+  
+  hourly_load_reduction <- rep(0, 8760)
+  
+  # APPLY BOXES ######
+  # Constructs the 8760 by sequentially applying the boxes from AVERT's
+  #   EnterEEREData tab. Each sub-heading of this section represents a different
+  #   box. We skip Box 4 because avertr doesn't do EVs (...yet).
+  ## Box 1: Enter EE based on the % reduction of regional fossil generation ======
+  if (apply_reduction_top_x_pct_hours != 0 & reduce_x_pct_in_top_hours != 0) {
+    # The number of hours to apply the reduction in
+    # NOTE: fix rounding to be consistent w excel rounding??
+    number_of_top_hours <- round(8760 * apply_reduction_top_x_pct_hours)
+    
+    # The indices where the top hours are located
+    top_hour_indices <- bau_load_8760 |> 
+      sort(decreasing = TRUE, index.return = TRUE) |> 
+      pluck("ix") |> 
+      (\(x) x[1:number_of_hours])()
+    
+    hourly_load_reduction[top_hour_indices] <- bau_load_8760[top_hour_indices] * reduce_x_pct_in_top_hours
+  }
+  
+  
+  ## Box 2: And/or enter EE distributed evenly throughout the year ======
+  if (reduce_annual_generation_by_x_gwh != 0 | reduce_each_hour_by_x_mw != 0) {
+    if (reduce_annual_generation_by_x_gwh != 0 & reduce_each_hour_by_x_mw != 0) {
+      stop("You cannot enter a non-zero value for both reduce_annual_generation_by_x_gwh and reduce_each_hour_by_x_mw. Please enter a non-zero value for at most one of these arguments.")
+    }
+    reduce_annual_generation_by_x_mwh <- reduce_annual_generation_by_x_gwh * 10^3
+    hourly_load_reduction <- hourly_load_reduction + (reduce_annual_generation_by_x_mwh / 8760)
+    hourly_load_reduction <- hourly_load_reduction + reduce_each_hour_by_x_mw
+  }
+  
+  
+  ## Box 3: And/or enter annual capacity of RE resources ======
+  
+  # I think the best way to do this is to collect the four capacity values
+  #   into a vector and then left multiply that vecotr by a matrix of the four
+  #   capacity factor 8760s. It's clean and no need for conditional statements.
+  
+  ## Box 5: And/or enter energy storage data ======
+  
+  
+  # Capacity factors
+  cfs <- xlsx_cells(
+    avert_main_module_filepath,
+    sheets = "EERE_Default",
+  )
+  
+  # Use unpivotr to clean, then filter for appropriate region and project type
+  cfs <- cfs |> 
+    behead("up-left", "Region") |> 
+    behead("up", "Project Type") |> 
+    filter(
+      Region == project_region &
+        `Project Type` == project_type &
+        row <= 8786
+    )
+  
+  capacity_factor_8760 <- cfs |> 
+    # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
+    #   and removes 12/31. It should be filter(!(row %in% 1419:1442)). But
+    #   this is the filter AVERT uses.
+    filter(row %in% 3:8762) |>
+    pull(numeric)
+  
+  # This is the hourly load reduction
+  hourly_load_reduction <- capacity_factor_8760 * project_capacity
+  
+  # This is the new hourly net load (i.e., ff load minus renewables)
+  new_load_8760 <- bau_load_8760 - hourly_load_reduction
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  # Pseudocode:
+  
+  # Basic loading of stuff, as in avert()
+  
+  # Apply the first EE box
+  
+  # Apply the second EE box
+  
+  # Apply the third EE box
+  
+  # If storage != 0:
+    # If solar paired TRUE:
+      # Do something. Not sure what, hopefully can just be an upfront tweak to one variable
+    
+    # Code for storage =======
+    # Create the charging profile (if manual not supplied) based on duration and
+    # string passed.
+    # Based on that, create a 24 hr load profile with 0s in idle hours, equally
+    # divide the round trip efficiency by the duration (you'll eventually have
+    # to make this more complex for if someone adds a non-equal number of
+    # charging/discharging hours)
+  
+  # NEED TO KEEP mesing around
+  
+  # And note that you haven't yet accounted for distinction between utiltiy
+  #   and distributed storage
+  
+  
+  # Else if 8760 load reduction is passed:
+  # If T&D losses applied TRUE
+  # Apply them
+  # Else
+  # Don't apply them
+  
+  
+  
+  
+  
+  
+  
+  
+  
+}
+
+
+
+
+
+
+
+
