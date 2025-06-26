@@ -534,8 +534,11 @@ avert <- function(project_year, project_region, project_type = NULL,
   return(avertr_results)
 }
 
-
-generate_hourly_load_reduction <- function(
+# Generates an 8760 hourly load reduction vector to be input into avert(). For
+#   Rooftop PV and distributed storage, losses used as of AVERT v4.3 are
+#   hard-coded. If all you want to do is adjust an 8760 representing an onsite
+#   energy program to also account for T&D losses then use adjust_reduction().
+generate_reduction <- function(
     project_year,
     project_region,
     avert_main_module_filepath,
@@ -570,9 +573,6 @@ generate_hourly_load_reduction <- function(
   
   # DEFINE/LOAD OBJECTS ######
   
-  load_bin_data_ap_region <- read_rds(avertr_rdf_filepath) |> 
-    pluck(paste0("load_bin_data_ap_", project_region))
-  
   bau_case_ap_region <- read_rds(avertr_rdf_filepath) |> 
     pluck(paste0("bau_case_ap_", project_region))
   
@@ -589,6 +589,13 @@ generate_hourly_load_reduction <- function(
     pull(load_8760_col)
   
   hourly_load_reduction <- rep(0, 8760)
+  
+  # This is the T&D losses for the region
+  t_and_d_loss_factor <- t_and_d_losses |> 
+    filter(`Data Year` == project_year) |> 
+    pull(project_region)
+  
+  
   
   # APPLY BOXES ######
   # Constructs the 8760 by sequentially applying the boxes from AVERT's
@@ -628,37 +635,64 @@ generate_hourly_load_reduction <- function(
   #   capacity factor 8760s. It's clean and no need for conditional statements.
   
   ## Box 5: And/or enter energy storage data ======
-  
-  
-  # Capacity factors
-  cfs <- xlsx_cells(
-    avert_main_module_filepath,
-    sheets = "EERE_Default",
-  )
-  
-  # Use unpivotr to clean, then filter for appropriate region and project type
-  cfs <- cfs |> 
-    behead("up-left", "Region") |> 
-    behead("up", "Project Type") |> 
-    filter(
-      Region == project_region &
-        `Project Type` == project_type &
-        row <= 8786
+  if (
+    onshore_wind_capacity_mw != 0 |
+    offshore_wind_capacity_mw != 0 |
+    utility_solar_pv_capacity_mw != 0 |
+    rooftop_solar_pv_capacity_mw != 0
+  ) {
+    # Capacity factors
+    cfs <- xlsx_cells(
+      avert_main_module_filepath,
+      sheets = "EERE_Default",
     )
+    
+    # Use unpivotr to clean, filtering for the appropriate region. Gets capacity
+    #   factors for all four technologies.
+    cfs <- cfs |> 
+      behead("up-left", "Region") |> 
+      behead("up", "Project Type") |> 
+      behead("left", "Date") |> 
+      behead("left", "Hour") |> 
+      filter(
+        Region == project_region &
+          row <= 8786
+      ) |> 
+      pack() |> 
+      select(row, value, `Project Type`) |> 
+      unpack() |> 
+      spatter(`Project Type`) |> 
+      select(!row)
+    
+    cfs <- cfs |> 
+      # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
+      #   and removes 12/31. It should be filter(!(row %in% 1419:1442)). But
+      #   this is the filter AVERT uses.
+      slice(1:8760) |> 
+      # Re-arrange columns to do the matrix multiplication below,  keeping the
+      #   four technologies in the same order as a user would input capacities for
+      #   them
+      relocate(`Onshore Wind`, `Offshore Wind`, `Rooftop PV`, `Utility PV`)
+    
+    # Vector of the four nameplate capacities the user has entered. Each has a
+    #   default value of 0.
+    capacity_vector <- c(
+      onshore_wind_capacity_mw,
+      offshore_wind_capacity_mw,
+      utility_solar_pv_capacity_mw,
+      rooftop_solar_pv_capacity_mw,
+    )
+    
+    # Right-multiply the 8760x4 matrix of capacity factors by the 4x1 vector of
+    #   capacities input by user. Add this to whatever load reduction user has
+    #   already entered.
+    hourly_load_reduction <- hourly_load_reduction + (
+      cfs %*% capacity_vector
+    )
+  }
   
-  capacity_factor_8760 <- cfs |> 
-    # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
-    #   and removes 12/31. It should be filter(!(row %in% 1419:1442)). But
-    #   this is the filter AVERT uses.
-    filter(row %in% 3:8762) |>
-    pull(numeric)
-  
-  # This is the hourly load reduction
-  hourly_load_reduction <- capacity_factor_8760 * project_capacity
-  
-  # This is the new hourly net load (i.e., ff load minus renewables)
-  new_load_8760 <- bau_load_8760 - hourly_load_reduction
-  
+
+    
   
   
   
@@ -703,18 +737,61 @@ generate_hourly_load_reduction <- function(
   
   
   
+}
+
+# If you have an 8760 vector you want to use to model an onsite
+#   energy-efficiency program, you'll reduce load on fossil fuel units by the
+#   amount of onsite energy you save, PLUS the T&D losses associated with
+#   delivering that amount of energy. So your 8760 vector of purely onsite
+#   energy reductions should be adjusted up to account for this fact. That's
+#   what this function does. Losses from AVERT v4.3 are hard-coded in. Note that
+#   rooftop PV and distributed storage are already adjusted up for T&D losses in
+#   generate_reduction().
+adjust_reduction <- function(
+  unadjusted_hourly_load_reduction = NULL,
+  project_year = NULL,
+  project_region = NULL
+) {
   
+  t_and_d_loss_factor <- t_and_d_losses |> 
+    filter(`Data Year` == project_year) |> 
+    pull(project_region)
   
+  adjusted_hourly_load_reduction <- unadjusted_hourly_load_reduction / (1 - t_and_d_loss_factor)
   
-  
-  
+  return(adjusted_hourly_load_reduction)
   
 }
 
 
 
+# TRANSMISSION DISTRIBUTION LOSS TABLE ########
+t_and_d_losses <- tribble(
+  ~`Data year`, ~Texas, ~`Eastern Interconnect`, ~`Western Interconnect`,
+  2017, 0.0560, 0.0700, 0.0813,
+  2018, 0.0483, 0.0674, 0.0854,
+  2019, 0.0538, 0.0720, 0.0860,
+  2020, 0.0517, 0.0758, 0.0828,
+  2021, 0.0495, 0.0750, 0.0839,
+  2022, 0.0458, 0.0723, 0.0867,
+  2023, 0.0458, 0.0723, 0.0867
+)
 
-
-
-
-
+t_and_d_losses <- t_and_d_losses |> 
+  mutate(
+    Carolinas = `Eastern Interconnect`,
+    Central = `Eastern Interconnect`,
+    Florida = `Eastern Interconnect`,
+    `Mid-Atlantic` = `Eastern Interconnect`,
+    Midwest = `Eastern Interconnect`,
+    `New England` = `Eastern Interconnect`,
+    `New York` = `Eastern Interconnect`,
+    Southeast = `Eastern Interconnect`,
+    Tennessee = `Eastern Interconnect`,
+    
+    `California` = `Western Interconnect`,
+    `Northwest` = `Western Interconnect`,
+    `Rocky Mountains` = `Western Interconnect`,
+    `Southwest` = `Western Interconnect`
+  ) |> 
+  select(!c(`Eastern Interconnect`, `Western Interconnect`))
