@@ -569,6 +569,11 @@ generate_reduction <- function(
     round_trip_efficiency = 0.85,
     depth_of_discharge = 0.80,
     
+    
+    
+    
+    
+    # Should these two be removed?
     project_type = NULL,
     project_capacity = NULL,
 ) {
@@ -632,11 +637,6 @@ generate_reduction <- function(
   
   ## Box 3: And/or enter annual capacity of RE resources ======
   
-  # I think the best way to do this is to collect the four capacity values
-  #   into a vector and then left multiply that vecotr by a matrix of the four
-  #   capacity factor 8760s. It's clean and no need for conditional statements.
-  
-  ## Box 5: And/or enter energy storage data ======
   if (
     onshore_wind_capacity_mw != 0 |
     offshore_wind_capacity_mw != 0 |
@@ -693,6 +693,131 @@ generate_reduction <- function(
     )
   }
   
+  
+  ## Box 5: And/or enter energy storage data ======
+  if (!pair_solar_with_storage) {
+    
+    pair_solar_with_storage = TRUE
+    utility_scale_storage_capacity = 100
+    distributed_storage_capacity = 0
+    duration = 4
+    charging_pattern = "Midday Charging"
+    manual_charging_pattern = NULL
+    # Not yet worrying about limiting charging on selected months or weekdays/ends
+    max_allowable_discharge_cylces_per_year = 150
+    round_trip_efficiency = 0.85
+    depth_of_discharge = 0.80
+    
+    if (charging_pattern == "Overnight Charging") {
+      charging_pattern_24h <- c(
+        "Charging",
+        "Charging",
+        "Charging",
+        "Charging",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Discharging",
+        "Discharging",
+        "Discharging",
+        "Discharging",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle"
+      )
+    } else if (charging_pattern == "Midday Charging") {
+      charging_pattern_24h <- c(
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Charging",
+        "Charging",
+        "Charging",
+        "Charging",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Discharging",
+        "Discharging",
+        "Discharging",
+        "Discharging",
+        "Idle",
+        "Idle",
+        "Idle",
+        "Idle"
+      )
+    } else if (charging_pattern == "Manual") {
+      charging_pattern_24h <- manual_charging_pattern
+    }
+    
+    # The number of charging hours
+    num_charge_hrs <- sum(charging_pattern_24h == "Charging")
+    
+    # The number of discharging hours
+    num_discharge_hrs <- sum(charging_pattern_24h == "Discharging")
+    
+    charging_tibble <- tibble(
+      hour = 1:24,
+      charging_indicator = charging_pattern_24h
+    ) |> 
+      mutate(
+        charging_fraction = case_when(
+          charging_indicator == "Idle" ~ 0,
+          charging_indicator == "Charging" ~ (1 / num_charge_hrs),
+          charging_indicator == "Discharging" ~ (-1 * (round_trip_efficiency / num_discharge_hrs))
+        ),
+        daily_load_reduction_utility = -1 * charging_fraction * depth_of_discharge * utility_scale_storage_capacity,
+        # GO BACK and verify this step!! This applies the loss adjustment to both charging and discharging hours, but plausibly it should not be applied to charging hours
+        daily_load_reduction_distributed = -1 * charging_fraction * depth_of_discharge * distributed_storage_capacity * (1 / (1 - t_and_d_loss_factor)),
+        daily_load_reduction_total = daily_load_reduction_utility + daily_load_reduction_distributed
+      )
+    
+    # DO that check from Table F here
+    
+    # Ideally find a better way to do this
+    bau_load_days <- split(bau_load_8760, ceiling(seq_along(bau_load_8760) / 24))
+    
+    bau_load_days <- map_dbl(bau_load_days, sum)
+    
+    nth_discharge_day_value <- sort(bau_load_days, decreasing = TRUE)[max_allowable_discharge_cylces_per_year]
+    
+    discharge_day_indicator <- bau_load_days >= nth_discharge_day_value
+    
+    discharge_hour_indicator <- rep(discharge_day_indicator, each = 24)
+    
+    
+    storage_load_reduction <- charging_tibble |> 
+      pull(daily_load_reduction_total) |> 
+      rep(length.out = length(discharge_hour_indicator)) |> 
+      (\(x) x * discharge_hour_indicator)()
+    
+    
+    
+    
+    
+  } else if (pair_solar_with_storage) {
+    
+  }
+  
+  
+  
+  # ADD the input validation section!! (As discussed in documentation)
 
     
   
