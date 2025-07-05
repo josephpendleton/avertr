@@ -541,41 +541,34 @@ avert <- function(project_year, project_region, project_type = NULL,
 #   hard-coded. If all you want to do is adjust an 8760 representing an onsite
 #   energy program to also account for T&D losses then use adjust_reduction().
 generate_reduction <- function(
-    project_year,
-    project_region,
-    avert_main_module_filepath,
-    avertr_rdf_filepath = NULL,
     
-    # Constrain to be number 0 to 1
-    apply_reduction_top_x_pct_hours = 0,
-    # Constrain to be a number 0 to 1
-    reduce_x_pct_in_top_hours = 0,
-    
-    reduce_annual_generation_by_x_gwh = 0,
-    reduce_each_hour_by_x_mw = 0,
-    
-    onshore_wind_capacity_mw = 0,
-    offshore_wind_capacity_mw = 0,
-    utility_solar_pv_capacity_mw = 0,
-    rooftop_solar_pv_capacity_mw = 0,
-    
-    pair_solar_with_storage = TRUE,
-    utility_scale_storage_capacity = 0,
-    distributed_storage_capacity = 0,
-    duration = 4,
-    charging_pattern = "Midday Charging",
-    # Not yet worrying about limiting charging on selected months or weekdays/ends
-    max_allowable_discharge_cylces_per_year = 150,
-    round_trip_efficiency = 0.85,
-    depth_of_discharge = 0.80,
-    
-    
-    
-    
-    
-    # Should these two be removed?
-    project_type = NULL,
-    project_capacity = NULL,
+  project_year,
+  project_region,
+  avert_main_module_filepath,
+  avertr_rdf_filepath = NULL,
+  
+  # Constrain to be number 0 to 1
+  apply_reduction_top_x_pct_hours = 0,
+  # Constrain to be a number 0 to 1
+  reduce_x_pct_in_top_hours = 0,
+  
+  reduce_annual_generation_by_x_gwh = 0,
+  reduce_each_hour_by_x_mw = 0,
+  
+  onshore_wind_capacity_mw = 0,
+  offshore_wind_capacity_mw = 0,
+  utility_solar_pv_capacity_mw = 0,
+  rooftop_solar_pv_capacity_mw = 0,
+  
+  pair_solar_with_storage = TRUE,
+  utility_scale_storage_capacity = 0,
+  distributed_storage_capacity = 0,
+  duration = 4,
+  charging_pattern = "Midday Charging",
+  # Not yet worrying about limiting charging on selected months or weekdays/ends
+  max_allowable_discharge_cylces_per_year = 150,
+  round_trip_efficiency = 0.85,
+  depth_of_discharge = 0.80
 ) {
   
   # DEFINE/LOAD OBJECTS ######
@@ -599,7 +592,7 @@ generate_reduction <- function(
   
   # This is the T&D losses for the region
   t_and_d_loss_factor <- t_and_d_losses |> 
-    filter(`Data Year` == project_year) |> 
+    filter(`Data year` == project_year) |> 
     pull(project_region)
   
   
@@ -695,19 +688,7 @@ generate_reduction <- function(
   
   
   ## Box 5: And/or enter energy storage data ======
-  if (!pair_solar_with_storage) {
-    
-    pair_solar_with_storage = TRUE
-    utility_scale_storage_capacity = 100
-    distributed_storage_capacity = 0
-    duration = 4
-    charging_pattern = "Midday Charging"
-    manual_charging_pattern = NULL
-    # Not yet worrying about limiting charging on selected months or weekdays/ends
-    max_allowable_discharge_cylces_per_year = 150
-    round_trip_efficiency = 0.85
-    depth_of_discharge = 0.80
-    
+  if (utility_scale_storage_capacity != 0 | distributed_storage_capacity != 0) {
     if (charging_pattern == "Overnight Charging") {
       charging_pattern_24h <- c(
         "Charging",
@@ -782,11 +763,20 @@ generate_reduction <- function(
           charging_indicator == "Charging" ~ (1 / num_charge_hrs),
           charging_indicator == "Discharging" ~ (-1 * (round_trip_efficiency / num_discharge_hrs))
         ),
-        daily_load_reduction_utility = -1 * charging_fraction * depth_of_discharge * utility_scale_storage_capacity,
-        # GO BACK and verify this step!! This applies the loss adjustment to both charging and discharging hours, but plausibly it should not be applied to charging hours
-        daily_load_reduction_distributed = -1 * charging_fraction * depth_of_discharge * distributed_storage_capacity * (1 / (1 - t_and_d_loss_factor)),
-        daily_load_reduction_total = daily_load_reduction_utility + daily_load_reduction_distributed
+        daily_load_reduction_utility = case_when(
+          charging_indicator == "Idle" ~ 0,
+          charging_indicator == "Charging" ~ -1 * depth_of_discharge * utility_scale_storage_capacity,
+          charging_indicator == "Discharging" ~ round_trip_efficiency * depth_of_discharge * utility_scale_storage_capacity
+        ),
+        daily_load_reduction_distributed = case_when(
+          charging_indicator == "Idle" ~ 0,
+          charging_indicator == "Charging" ~ -1 * depth_of_discharge * distributed_storage_capacity,
+          charging_indicator == "Discharging" ~ round_trip_efficiency * depth_of_discharge * distributed_storage_capacity
+        ),
+        daily_load_reduction_total = daily_load_reduction_utility + (daily_load_reduction_distributed / (1 - t_and_d_loss_factor))
       )
+    
+    # Shouldn't T&D losses be applied to utility charging?
     
     # DO that check from Table F here
     
@@ -805,64 +795,57 @@ generate_reduction <- function(
     storage_load_reduction <- charging_tibble |> 
       pull(daily_load_reduction_total) |> 
       rep(length.out = length(discharge_hour_indicator)) |> 
-      (\(x) x * discharge_hour_indicator)()
+      (\(x) x * discharge_hour_indicator)() |> 
+      unname()
     
     
     
     
+    # Not yet worrying about limiting charging on selected months or weekdays/ends
     
-  } else if (pair_solar_with_storage) {
+    
+    if (pair_solar_with_storage) {
+      # Grab the utility-scale solar profile (from above box section in this function)
+      # Expand the daily pattern to be the same length as that profile
+      # Add a datetime column for each hour of the year
+      # mutate to create a new column with just the day of the year
+      # group by day and sum solar in each day (DURING charging hrs!), put in a new col
+        # and also sum utility charging needed in each day and put it in a new col
+          # This is just capacity*depth_of_discharge*number_charging_hrs
+        # and sum utility discharging needed in ecah day and put it in a new col
+          # This is just capacity*depth_of_discharge*numedr_DIScharging_hrs*ROUND_TRIP_EFFICIENCY
+      
+      # case_when to get an indicator for whether each hour is within a day which
+      #   has sufficient charging
+      # If a day does:
+      # If an hour does, then if the hour has more than enough solar, keep the
+      #   exisitng profile the same and then just add the difference between the
+      #   solar and the current profile as energy that goes to the grid
+      # If an hour doesn't, then multiply the sum of solar capacity col in the hr by the fraction thing
+      
+      
+      
+      # I think you basically want:
+        # In each charging hr set it to the lesser of max charging capacity and available solar
+          # if solar capacity is too much, set the hr to max charging capacity (augmented by loss values if needed)
+          # if solar capacity isn't enough, set the hr to the available solar capacity (augmented by loss values as needed)
+        # In each discharge hr
+          # sum the entirey charging that happened that day, multiply it by round-trip-efficiency, and divide it by the number of discharge hours
+      
+      
+      # But I guess there could be cases where actually in AVERT charging is allowed
+      #   to exceed max charging capacity? Like 
+      
+      
+    }
     
   }
+  
+
   
   
   
   # ADD the input validation section!! (As discussed in documentation)
-
-    
-  
-  
-  
-  
-  
-  
-  
-  
-  # Pseudocode:
-  
-  # Basic loading of stuff, as in avert()
-  
-  # Apply the first EE box
-  
-  # Apply the second EE box
-  
-  # Apply the third EE box
-  
-  # If storage != 0:
-    # If solar paired TRUE:
-      # Do something. Not sure what, hopefully can just be an upfront tweak to one variable
-    
-    # Code for storage =======
-    # Create the charging profile (if manual not supplied) based on duration and
-    # string passed.
-    # Based on that, create a 24 hr load profile with 0s in idle hours, equally
-    # divide the round trip efficiency by the duration (you'll eventually have
-    # to make this more complex for if someone adds a non-equal number of
-    # charging/discharging hours)
-  
-  # NEED TO KEEP mesing around
-  
-  # And note that you haven't yet accounted for distinction between utiltiy
-  #   and distributed storage
-  
-  
-  # Else if 8760 load reduction is passed:
-  # If T&D losses applied TRUE
-  # Apply them
-  # Else
-  # Don't apply them
-  
-  
   
 }
 
