@@ -673,14 +673,14 @@ generate_reduction <- function(
       onshore_wind_capacity_mw,
       offshore_wind_capacity_mw,
       utility_solar_pv_capacity_mw,
-      rooftop_solar_pv_capacity_mw,
+      rooftop_solar_pv_capacity_mw
     )
     
     # Right-multiply the 8760x4 matrix of capacity factors by the 4x1 vector of
     #   capacities input by user. Add this to whatever load reduction user has
     #   already entered.
     hourly_load_reduction <- hourly_load_reduction + (
-      cfs %*% capacity_vector
+      as.matrix(cfs) %*% capacity_vector
     )
   }
   
@@ -798,7 +798,7 @@ generate_reduction <- function(
     
     
     
-    
+    browser()
     # Not yet worrying about limiting charging on selected months or weekdays/ends
     
     
@@ -834,7 +834,38 @@ generate_reduction <- function(
       # But I guess there could be cases where actually in AVERT charging is allowed
       #   to exceed max charging capacity? Like 
       
+      solar_profile_utility <- pull(cfs, `Utility PV`) * utility_solar_pv_capacity_mw
+      solar_profile_distributed <- pull(cfs, `Rooftop PV`) * rooftop_solar_pv_capacity_mw
       
+      charging_tibble_8760 <- charging_tibble[rep(1:nrow(charging_tibble), length.out = length(solar_profile_utility)), ]
+      
+      charging_tibble_8760 <- cbind(charging_tibble_8760, solar_profile_utility, solar_profile_distributed)
+      
+      charging_tibble_8760 <- charging_tibble_8760 |> 
+        mutate(
+          date_time = datetime_8760,
+          day = floor_date(datetime_8760, unit = "day")
+        )
+      
+      
+      charging_tibble_8760 <- charging_tibble_8760 |> mutate(solar_storage_load_reduction = case_when(
+        # (Or there's a simpler way to do this with just min())
+        charging_indicator == "Charging" & solar_profile_utility >= (-1 * daily_load_reduction_utility) ~ daily_load_reduction_utility,
+        charging_indicator == "Charging" & solar_profile_utility < (-1 * daily_load_reduction_utility) ~ solar_profile_utility,
+      ))
+      
+      charging_tibble_8760 <- charging_tibble_8760 |> 
+        group_by(day) |> 
+        mutate(total_daily_charging = sum(solar_storage_load_reduction, na.rm = TRUE))
+      
+      charging_tibble_8760 <- charging_tibble_8760 |> 
+        mutate(
+          case_when(
+            charging_indicator == "Discharging" ~ -1 * (total_daily_charging / num_discharge_hrs)
+          )
+        )
+      
+        
     }
     
   }
@@ -846,6 +877,7 @@ generate_reduction <- function(
   # ADD the input validation section!! (As discussed in documentation)
   
 }
+
 
 # If you have an 8760 vector you want to use to model an onsite
 #   energy-efficiency program, you'll reduce load on fossil fuel units by the
