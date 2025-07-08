@@ -49,12 +49,10 @@ avert <- function(project_year, project_region, project_type = NULL,
   # If no avertr rdf filepath entered, assumes it's one of the standard runs and
   #   fills in filepath based on region and year.
   if (is.null(avertr_rdf_filepath)) {
-    avertr_rdf_filepath <- paste0(
-      "./avertr_rdfs/avertr_rdf_",
-      project_region,
-      "_",
-      project_year,
-      ".rds"
+    avertr_rdf_filepath <- file.path(
+      ".",
+      "avertr_rdfs",
+      paste0("avertr_rdf_", project_region, "_", project_year, ".rds")
     )
   }
   
