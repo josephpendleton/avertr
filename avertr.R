@@ -771,7 +771,7 @@ generate_reduction <- function(
           charging_indicator == "Charging" ~ -1 * depth_of_discharge * distributed_storage_capacity,
           charging_indicator == "Discharging" ~ round_trip_efficiency * depth_of_discharge * distributed_storage_capacity
         ),
-        daily_load_reduction_total = daily_load_reduction_utility + (daily_load_reduction_distributed / (1 - t_and_d_loss_factor))
+        daily_load_reduction_both = daily_load_reduction_utility + (daily_load_reduction_distributed / (1 - t_and_d_loss_factor))
       )
     
     # Shouldn't T&D losses be applied to utility charging?
@@ -791,7 +791,7 @@ generate_reduction <- function(
     
     
     storage_load_reduction <- charging_tibble |> 
-      pull(daily_load_reduction_total) |> 
+      pull(daily_load_reduction_both) |> 
       rep(length.out = length(discharge_hour_indicator)) |> 
       (\(x) x * discharge_hour_indicator)() |> 
       unname()
@@ -834,6 +834,11 @@ generate_reduction <- function(
       # But I guess there could be cases where actually in AVERT charging is allowed
       #   to exceed max charging capacity? Like 
       
+      
+      
+      
+      
+      
       solar_profile_utility <- pull(cfs, `Utility PV`) * utility_solar_pv_capacity_mw
       solar_profile_distributed <- pull(cfs, `Rooftop PV`) * rooftop_solar_pv_capacity_mw
       
@@ -844,8 +849,47 @@ generate_reduction <- function(
       charging_tibble_8760 <- charging_tibble_8760 |> 
         mutate(
           date_time = datetime_8760,
-          day = floor_date(datetime_8760, unit = "day")
+          day = floor_date(datetime_8760, unit = "day"),
+          daily_charging_both = if_else(
+            charging_indicator == "Charging",
+            daily_load_reduction_both,
+            0
+          ),
+          daily_charging_min_solar_charging = if_else(
+            solar_profile_utility <= (-1 * daily_charging_both),
+            solar_profile_utility,
+            (-1 * daily_charging_both)
+          )
         )
+      
+      charging_tibble_8760t <- charging_tibble_8760 |> 
+        group_by(day) |> 
+        mutate(
+          daily_charging_sum = sum(daily_charging_both),
+          daily_solar_sum = sum(solar_profile_utility),
+          daily_charging_min_solar_charging_cumsum = cumsum(daily_charging_min_solar_charging),
+        )
+      
+      
+      
+      charging_tibble_8760t <- charging_tibble_8760t |> 
+        mutate(daily_charging_sum = abs(daily_charging_sum))
+      
+      
+      charging_tibble_8760t <- charging_tibble_8760t |> 
+        mutate(
+          final_profile = case_when(
+            charging_indicator == "Charging" & daily_charging_sum <= (daily_charging_min_solar_charging + solar_profile_distributed), # The charging amount, but then adjust by the total amount of solar to account for excess sent to grid 
+            charging_indicator == "Charging" & daily_charging_sum > daily_solar_sum & daily_charging_min_solar_charging_cumsum <= daily_charging_sum ~ daily_charging_min_solar_charging,
+            charging_indicator == "Charging" & daily_charging_sum > daily_solar_sum & daily_charging_min_solar_charging_cumsum > daily_charging_sum ~ max(daily_charging_sum - daily_charging_min_solar_charging_cumsum, 0), # You'll need to finagle, but the idea is that if the daily charging sum is larger then there's still yet space to charge, so charge up to the difference; but if the cumsum is by then bigger, then there's no space, so it returns 0 
+          )
+        )
+      
+      # This setup above feels prone to edge cases...
+      
+      
+      
+      
       
       
       charging_tibble_8760 <- charging_tibble_8760 |> mutate(solar_storage_load_reduction = case_when(
