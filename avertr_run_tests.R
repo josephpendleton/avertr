@@ -9,13 +9,27 @@ source("./avertr_test.R")
 
 # 6000 MW OSW NY#############
 ## Run avertr Scenario ===========
-osw_6000_ny <- avert(
-  project_capacity = 6000,
+# osw_6000_ny <- avert(
+#   project_capacity = 6000,
+#   project_region = "New York",
+#   project_year = "2023",
+#   project_type = "Offshore Wind",
+#   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx"
+# )
+
+osw_6000_ny <- generate_reduction(
+  offshore_wind_capacity_mw = 6000,
   project_region = "New York",
   project_year = "2023",
-  project_type = "Offshore Wind",
-  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx"
-)
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New York_2023.rds"
+) |> 
+  avert(
+    project_region = "New York",
+    project_year = "2023",
+    avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New York_2023.rds"
+  )
 
 
 ## Test =============
@@ -43,6 +57,18 @@ flat_500_ca <- avert(
   hourly_load_reduction = rep((500 / (1 - .0867)), 8760),
 )
 
+flat_500_ca <- adjust_reduction(
+  unadjusted_hourly_load_reduction = rep(500, 8760),
+  project_year = 2023,
+  project_region = "California"
+) |> 
+  avert(
+    project_region = "New York",
+    project_year = "2023",
+    avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New York_2023.rds"
+  )
+  
 
 ## Test =============
 ### annual -----------
