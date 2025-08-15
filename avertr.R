@@ -558,7 +558,7 @@ generate_reduction <- function(
   utility_solar_pv_capacity_mw = 0,
   rooftop_solar_pv_capacity_mw = 0
 ) {
-  
+  browser()
   # DEFINE/LOAD OBJECTS ######
   bau_case_ap_region <- read_rds(avertr_rdf_filepath) |> 
     pluck(paste0("bau_case_ap_", project_region))
@@ -659,21 +659,41 @@ generate_reduction <- function(
     # Vector of the four nameplate capacities the user has entered. Each has a
     #   default value of 0.
     capacity_vector <- c(
-      onshore_wind_capacity_mw,
-      offshore_wind_capacity_mw,
-      utility_solar_pv_capacity_mw,
-      rooftop_solar_pv_capacity_mw
+      "onshore_wind_capacity_mw" = onshore_wind_capacity_mw,
+      "offshore_wind_capacity_mw" = offshore_wind_capacity_mw,
+      "rooftop_solar_pv_capacity_mw" = rooftop_solar_pv_capacity_mw,
+      "utility_solar_pv_capacity_mw" = utility_solar_pv_capacity_mw
     )
     
-    # Right-multiply the 8760x4 matrix of capacity factors by the 4x1 vector of
-    #   capacities input by user. Add this to whatever load reduction user has
-    #   already entered.
-    hourly_load_reduction <- hourly_load_reduction + (
-      as.matrix(cfs) %*% capacity_vector
-    )
+    # Multiply each renewable capacity factor vector by the matching
+    #   capacity input by the user, then sum them together.
+    summed_renewables <- cfs |> 
+      mutate(
+        `Onshore Wind` = `Onshore Wind` * capacity_vector["onshore_wind_capacity_mw"],
+        `Offshore Wind` = `Offshore Wind` * capacity_vector["offshore_wind_capacity_mw"],
+        `Rooftop PV` = `Rooftop PV` * capacity_vector["rooftop_solar_pv_capacity_mw"],
+        `Utility PV` = `Utility PV` * capacity_vector["utility_solar_pv_capacity_mw"],
+        
+        # Offshore wind is NA for all inland regions, so replace these before
+        #   summing
+        `Offshore Wind` = replace_na(`Offshore Wind`, 0),
+        
+        # The Rooftop PV capacity factor is not adjusted for T&D losses. But
+        #   AVERT automatically adjusts it because Rooftop PV generation
+        #   happens onsite. Similarly we adjust by default here.
+        `Rooftop PV` = adjust_reduction(
+          `Rooftop PV`,
+          project_year = project_year,
+          project_region = project_region
+        ),
+        
+        
+        summed_renewables = `Onshore Wind` + `Offshore Wind` + `Rooftop PV` + `Utility PV`
+      ) |> 
+      pull(summed_renewables)
     
-    # Turn it back into a vector
-    hourly_load_reduction <- as.vector(hourly_load_reduction)
+    # Add this to whatever load reduction user has already entered.
+    hourly_load_reduction <- hourly_load_reduction + summed_renewables
   }
 }
 
