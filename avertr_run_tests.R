@@ -34,13 +34,13 @@ osw_6000_ny <- generate_reduction(
 
 ## Test =============
 ### annual -----------
-osw_6000_ny_test_annual <- avertr_test_annual(
+osw_6000_ny_test_annual <- test_annual(
   avertr_results = osw_6000_ny,
   avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_06072025.xlsx"
 )
 
 ### hourly -----------
-osw_6000_ny_test_hourly <- avertr_test_hourly(
+osw_6000_ny_test_hourly <- test_hourly(
   avertr_results = osw_6000_ny,
   avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_06072025.xlsx"
 )
@@ -49,13 +49,13 @@ osw_6000_ny_test_hourly <- avertr_test_hourly(
 
 # 500 MW FLAT LOAD REDUCTION CALIFORNIA #############
 ## Run avertr Scenario ===========
-flat_500_ca <- avert(
-  project_year = 2023,
-  project_region = "California",
-  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  # Applying the Western Interconnect T&D loss that AVERT applies 
-  hourly_load_reduction = rep((500 / (1 - .0867)), 8760),
-)
+# flat_500_ca <- avert(
+#   project_year = 2023,
+#   project_region = "California",
+#   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+#   # Applying the Western Interconnect T&D loss that AVERT applies 
+#   hourly_load_reduction = rep((500 / (1 - .0867)), 8760),
+# )
 
 flat_500_ca <- adjust_reduction(
   unadjusted_hourly_load_reduction = rep(500, 8760),
@@ -63,22 +63,21 @@ flat_500_ca <- adjust_reduction(
   project_region = "California"
 ) |> 
   avert(
-    project_region = "New York",
+    project_region = "California",
     project_year = "2023",
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New York_2023.rds"
   )
   
 
 ## Test =============
 ### annual -----------
-flat_500_ca_test_annual <- avertr_test_annual(
+flat_500_ca_test_annual <- test_annual(
   avertr_results = flat_500_ca,
   avert_run_filepath = "./test_scenarios/500MW_flat_load_reduction_RM_06102025.xlsx"
 )
 
 ### hourly -----------
-flat_500_ca_test_hourly <- avertr_test_hourly(
+flat_500_ca_test_hourly <- test_hourly(
   avertr_results = flat_500_ca,
   avert_run_filepath = "./test_scenarios/500MW_flat_load_reduction_RM_06102025.xlsx"
 )
@@ -87,25 +86,39 @@ flat_500_ca_test_hourly <- avertr_test_hourly(
 
 # 900 MW UTILITY PV ROCKY MOUNTAINS #############
 ## Run avertr Scenario ===========
-utilitypv_900_rocky <- avert(
-  project_year = 2023,
+# utilitypv_900_rocky <- avert(
+#   project_year = 2023,
+#   project_region = "Rocky Mountains",
+#   project_type = "Utility PV",
+#   project_capacity = 900,
+#   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+# )
+
+utilitypv_900_rocky <- generate_reduction(
+  utility_solar_pv_capacity_mw = 900,
   project_region = "Rocky Mountains",
-  project_type = "Utility PV",
-  project_capacity = 900,
+  project_year = "2023",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-)
+  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Rocky Mountains_2023.rds"
+) |> 
+  avert(
+    project_region = "Rocky Mountains",
+    project_year = "2023",
+    avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Rocky Mountains_2023.rds"
+  )
 
 
 ## Test =============
 ### annual -----------
-utilitypv_900_rocky_test_annual <- avertr_test_annual(
+utilitypv_900_rocky_test_annual <- test_annual(
   avertr_results = utilitypv_900_rocky,
   avert_run_filepath = "./test_scenarios/900MW_UPV_RM_061025.xlsx"
 )
 
 
 ### hourly -----------
-utilitypv_900_rocky_test_hourly <- avertr_test_hourly(
+utilitypv_900_rocky_test_hourly <- test_hourly(
   avertr_results = utilitypv_900_rocky,
   avert_run_filepath = "./test_scenarios/900MW_UPV_RM_061025.xlsx"
 )
@@ -125,13 +138,13 @@ rooftoppv_20_texas <- avert(
 
 ## Test =============
 ### annual -----------
-rooftoppv_20_texas_annual <- avertr_test_annual(
+rooftoppv_20_texas_annual <- test_annual(
   rooftoppv_20_texas,
   avert_run_filepath = "./test_scenarios/20MW_RPV_TX_06112025.xlsx"
 )
 
 ### hourly -----------
-rooftoppv_20_texas_hourly <- avertr_test_hourly(
+rooftoppv_20_texas_hourly <- test_hourly(
   rooftoppv_20_texas,
   avert_run_filepath = "./test_scenarios/20MW_RPV_TX_06112025.xlsx"
 )
@@ -152,13 +165,13 @@ flat_2193_ne <- avert(
 
 ## Test =============
 ### annual -----------
-flat_2193_ne_annual <- avertr_test_annual(
+flat_2193_ne_annual <- test_annual(
   flat_2193_ne,
   avert_run_filepath = "./test_scenarios/2193MW_flat_load_reduction_NE.xlsx"
 )
 
 ### hourly -----------
-flat_2193_ne_hourly <- avertr_test_hourly(
+flat_2193_ne_hourly <- test_hourly(
   flat_2193_ne,
   avert_run_filepath = "./test_scenarios/2193MW_flat_load_reduction_NE.xlsx"
 )
