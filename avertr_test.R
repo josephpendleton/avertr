@@ -13,7 +13,7 @@ library(unpivotr)
 
 
 
-avertr_test_annual <- function(avertr_results, avert_run_filepath) {
+test_annual <- function(avertr_results, avert_run_filepath) {
   # Load elements of avertr_results list to environment
   list2env(avertr_results, envir = environment())
   
@@ -190,7 +190,7 @@ avertr_test_annual <- function(avertr_results, avert_run_filepath) {
 
 
 
-avertr_test_hourly <- function(avertr_results, avert_run_filepath) {
+test_hourly <- function(avertr_results, avert_run_filepath) {
   # Load elements of avertr_results list to environment
   list2env(avertr_results, envir = environment())
   
