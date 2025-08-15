@@ -136,13 +136,6 @@ rooftoppv_20_texas_hourly <- test_hourly(
 # This scenario is special because in the first hour of the year the new net
 #   load exactly equals the lowest load bin.
 ## Run avertr Scenario ===========
-# flat_2193_ne <- avert(
-#   project_year = 2023,
-#   project_region = "New England",
-#   hourly_load_reduction = rep(2193, 8760),
-#   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-# )
-
 flat_2193_ne <- avert(
   hourly_load_reduction = rep(2193, 8760),
   project_region = "New England",
@@ -167,12 +160,86 @@ flat_2193_ne_hourly <- test_hourly(
 
 
 
+# Multiple Tennessee #############
+## Run avertr Scenario ===========
+multiple_tennessee <- generate_reduction(
+  apply_reduction_top_x_pct_hours = 10,
+  reduce_x_pct_in_top_hours = 7,
+  onshore_wind_capacity_mw = 200,
+  rooftop_solar_pv_capacity_mw = 300,
+  project_region = "Tennessee",
+  project_year = "2023",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
+) |> 
+  avert(
+    project_region = "Tennessee",
+    project_year = "2023",
+    avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
+  )
+
+## Test =============
+### annual -----------
+multiple_tennessee_annual <- test_annual(
+  multiple_tennessee,
+  avert_run_filepath = "./test_scenarios/multiple_TN_08152025.xlsx"
+)
+
+### hourly -----------
 
 
 
 
 
-# 1. Run new tests for new features
+
+multiple_tennessee_onlyadj <- generate_reduction(
+  apply_reduction_top_x_pct_hours = 10,
+  reduce_x_pct_in_top_hours = 7,
+  project_region = "Tennessee",
+  project_year = "2023",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
+) |> 
+  avert(
+    project_region = "Tennessee",
+    project_year = "2023",
+    avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
+  )
+
+  
+
+multiple_tennessee_onlyadj_annual <- test_annual(
+  multiple_tennessee_onlyadj,
+  avert_run_filepath = "./test_scenarios/multiple_TN_onlyadj_08152025.xlsx"
+)
+
+# Next steps: actually compare the hourly load changes between
+#   AVERT and avertr, see if they're off by a consistent amt,
+#   if different hours have 0 load changes (which would imply that
+#   there are different "top hours" being chosen)
+
+
+
+
+
+
+
+
+
+
+
+
+# 1. Run new tests for new features, incl. combinations!!
+
+# apply_reduction_top_x_pct_hours
+# 
+# reduce_x_pct_in_top_hours
+# 
+# reduce_annual_generation_by_x_gwh
+# reduce_each_hour_by_x_mw
+# # (You may need to adjust load for EE)
 
 # 2. Do an all.equal() after downloading stuff from the main branch and comparing
 
