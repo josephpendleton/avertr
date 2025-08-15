@@ -543,9 +543,7 @@ generate_reduction <- function(
   avert_main_module_filepath,
   avertr_rdf_filepath,
   
-  # Constrain to be number 0 to 1
   apply_reduction_top_x_pct_hours = 0,
-  # Constrain to be a number 0 to 1
   reduce_x_pct_in_top_hours = 0,
   
   reduce_annual_generation_by_x_gwh = 0,
@@ -556,8 +554,13 @@ generate_reduction <- function(
   utility_solar_pv_capacity_mw = 0,
   rooftop_solar_pv_capacity_mw = 0
 ) {
-  browser()
+  
   # DEFINE/LOAD OBJECTS ######
+  # Scale down the two percents entered by users, since they're assumed to be
+  #   1-100, but are more practically used here are fractions from 0 to 1.
+  apply_reduction_top_x_pct_hours <- apply_reduction_top_x_pct_hours / 100
+  reduce_x_pct_in_top_hours <- reduce_x_pct_in_top_hours / 100
+  
   bau_case_ap_region <- read_rds(avertr_rdf_filepath) |> 
     pluck(paste0("bau_case_ap_", project_region))
   
@@ -596,8 +599,9 @@ generate_reduction <- function(
     top_hour_indices <- bau_load_8760 |> 
       sort(decreasing = TRUE, index.return = TRUE) |> 
       pluck("ix") |> 
-      (\(x) x[1:number_of_hours])()
+      (\(x) x[1:number_of_top_hours])()
     
+    # Get the appropriate hourly reductions for each hour
     hourly_load_reduction[top_hour_indices] <- bau_load_8760[top_hour_indices] * reduce_x_pct_in_top_hours
   }
   
@@ -614,7 +618,6 @@ generate_reduction <- function(
   
   
   ## Box 3: And/or enter annual capacity of RE resources ======
-  
   if (
     onshore_wind_capacity_mw != 0 |
     offshore_wind_capacity_mw != 0 |
@@ -685,7 +688,6 @@ generate_reduction <- function(
           project_region = project_region
         ),
         
-        
         summed_renewables = `Onshore Wind` + `Offshore Wind` + `Rooftop PV` + `Utility PV`
       ) |> 
       pull(summed_renewables)
@@ -693,6 +695,7 @@ generate_reduction <- function(
     # Add this to whatever load reduction user has already entered.
     hourly_load_reduction <- hourly_load_reduction + summed_renewables
   }
+  return(hourly_load_reduction)
 }
 
 
