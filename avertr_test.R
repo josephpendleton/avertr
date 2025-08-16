@@ -232,7 +232,7 @@ test_hourly <- function(avertr_results, avert_run_filepath) {
     map(~ select(.x, !(...1:...7) & !(...9:...11))) |> 
     # Then collapse the three header rows into one
     map(map_chr, ~ str_flatten(.x, collapse = "|", na.rm = TRUE))
-  browser()
+  
   # Clean the actual EGU data
   avert_differences_final_hourly <- avert_hourly_data |> 
     # Grab the appropriate rows for the EGU data
@@ -276,7 +276,7 @@ test_hourly <- function(avertr_results, avert_run_filepath) {
     avert_differences_final_hourly,
     ~ mutate(.x, `ORISPL Code` = as.numeric(`ORISPL Code`))
   )
-  browser()
+  
   # Take the list of the 8 data measure tables and join all of the tables to
   #   one another until you have one big table. Relationship should be one-to-
   #   one, and throw an error if any row is unmatched.
