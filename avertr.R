@@ -605,6 +605,15 @@ generate_reduction <- function(
     
     # Get the appropriate hourly reductions for each hour
     hourly_load_reduction[top_hour_indices] <- bau_load_8760[top_hour_indices] * reduce_x_pct_in_top_hours
+    
+    # Since this box is used for modeling energy efficiency measures, where the
+    #   reductions occur on-site. Thus, like AVERT, we by default adjust for
+    #   T&D losses.
+    hourly_load_reduction <- adjust_reduction(
+      hourly_load_reduction,
+      project_year = project_year,
+      project_region = project_region
+    )
   }
   
   
@@ -613,9 +622,29 @@ generate_reduction <- function(
     if (reduce_annual_generation_by_x_gwh != 0 & reduce_each_hour_by_x_mw != 0) {
       stop("You cannot enter a non-zero value for both reduce_annual_generation_by_x_gwh and reduce_each_hour_by_x_mw. Please enter a non-zero value for at most one of these arguments.")
     }
+    
+    # Convert GWh to MWh
     reduce_annual_generation_by_x_mwh <- reduce_annual_generation_by_x_gwh * 10^3
-    hourly_load_reduction <- hourly_load_reduction + (reduce_annual_generation_by_x_mwh / 8760)
-    hourly_load_reduction <- hourly_load_reduction + reduce_each_hour_by_x_mw
+    
+    # Add the reduce_annual_generation_by_x_mwh value, divided evenly over all
+    #   8760 hours of the year. Since this box is used for modeling energy
+    #   efficiency measures, where the reductions occur on-site. Thus, like
+    #   AVERT, we by default adjust for T&D losses.
+    hourly_load_reduction <- hourly_load_reduction + adjust_reduction(
+      (reduce_annual_generation_by_x_mwh / 8760),
+      project_year = project_year,
+      project_region = project_region
+    )
+    
+    # Add the reduce_each_hour_by_x_mw value, divided evenly over all
+    #   8760 hours of the year. Since this box is used for modeling energy
+    #   efficiency measures, where the reductions occur on-site. Thus, like
+    #   AVERT, we by default adjust for T&D losses.
+    hourly_load_reduction <- hourly_load_reduction + adjust_reduction(
+      reduce_each_hour_by_x_mw,
+      project_year = project_year,
+      project_region = project_region
+    )
   }
   
   
