@@ -160,7 +160,7 @@ flat_2193_ne_hourly <- test_hourly(
 
 
 
-# Multiple Tennessee #############
+# MULTIPLE TENNESSEE #############
 ## Run avertr Scenario ===========
 multiple_tennessee <- generate_reduction(
   apply_reduction_top_x_pct_hours = 10,
@@ -187,40 +187,43 @@ multiple_tennessee_annual <- test_annual(
 )
 
 ### hourly -----------
+# # Note: this doesn't work because for some reason, seemingly on for this file,
+# #   the datetimes get read in as days from 1899-12-30, which is how Excel stores
+# #   them, rather than as parseable strings. Working on fixing.
+# multiple_tennessee_annual <- test_hourly(
+#   multiple_tennessee,
+#   avert_run_filepath = "./test_scenarios/multiple_TN_08152025.xlsx"
+# )
 
 
 
-
-
-
-multiple_tennessee_onlyadj <- generate_reduction(
-  apply_reduction_top_x_pct_hours = 10,
-  reduce_x_pct_in_top_hours = 7,
-  project_region = "Tennessee",
+# MULTIPLE MIDWEST #############
+## Run avertr Scenario ===========
+multiple_midwest <- generate_reduction(
+  reduce_annual_generation_by_x_gwh = 1,
+  reduce_each_hour_by_x_mw = 26,
+  apply_reduction_top_x_pct_hours = 3,
+  reduce_x_pct_in_top_hours = 5.7,
+  utility_solar_pv_capacity_mw = 200,
+  project_region = "Midwest",
   project_year = "2023",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
+  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Midwest_2023.rds"
 ) |> 
   avert(
-    project_region = "Tennessee",
+    project_region = "Midwest",
     project_year = "2023",
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
+    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Midwest_2023.rds"
   )
 
+
+## Test =============
+### annual -----------
+
+### hourly -----------
+
   
-
-multiple_tennessee_onlyadj_annual <- test_annual(
-  multiple_tennessee_onlyadj,
-  avert_run_filepath = "./test_scenarios/multiple_TN_onlyadj_08152025.xlsx"
-)
-
-# Next steps: actually compare the hourly load changes between
-#   AVERT and avertr, see if they're off by a consistent amt,
-#   if different hours have 0 load changes (which would imply that
-#   there are different "top hours" being chosen)
-
-
 
 
 
@@ -241,7 +244,7 @@ multiple_tennessee_onlyadj_annual <- test_annual(
 # reduce_each_hour_by_x_mw
 # # (You may need to adjust load for EE)
 
-# 2. Do an all.equal() after downloading stuff from the main branch and comparing
+# 2. spot check the R^2s and stuff for some recent runs
 
 
 
