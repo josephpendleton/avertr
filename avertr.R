@@ -617,9 +617,6 @@ generate_reduction <- function(
   
   ## Box 2: And/or enter EE distributed evenly throughout the year ======
   if (reduce_annual_generation_by_x_gwh != 0 | reduce_each_hour_by_x_mw != 0) {
-    if (reduce_annual_generation_by_x_gwh != 0 & reduce_each_hour_by_x_mw != 0) {
-      stop("You cannot enter a non-zero value for both reduce_annual_generation_by_x_gwh and reduce_each_hour_by_x_mw. Please enter a non-zero value for at most one of these arguments.")
-    }
     
     # Convert GWh to MWh
     reduce_annual_generation_by_x_mwh <- reduce_annual_generation_by_x_gwh * 10^3

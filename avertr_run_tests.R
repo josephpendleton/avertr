@@ -32,10 +32,10 @@ osw_6000_ny_test_annual <- test_annual(
 )
 
 ### hourly -----------
-osw_6000_ny_test_hourly <- test_hourly(
-  avertr_results = osw_6000_ny,
-  avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_06072025.xlsx"
-)
+# osw_6000_ny_test_hourly <- test_hourly(
+#   avertr_results = osw_6000_ny,
+#   avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_06072025.xlsx"
+# )
 
 
 
@@ -61,10 +61,10 @@ flat_500_ca_test_annual <- test_annual(
 )
 
 ### hourly -----------
-flat_500_ca_test_hourly <- test_hourly(
-  avertr_results = flat_500_ca,
-  avert_run_filepath = "./test_scenarios/500MW_flat_load_reduction_RM_06102025.xlsx"
-)
+# flat_500_ca_test_hourly <- test_hourly(
+#   avertr_results = flat_500_ca,
+#   avert_run_filepath = "./test_scenarios/500MW_flat_load_reduction_RM_06102025.xlsx"
+# )
 
 
 
@@ -92,12 +92,11 @@ utilitypv_900_rocky_test_annual <- test_annual(
   avert_run_filepath = "./test_scenarios/900MW_UPV_RM_061025.xlsx"
 )
 
-
 ### hourly -----------
-utilitypv_900_rocky_test_hourly <- test_hourly(
-  avertr_results = utilitypv_900_rocky,
-  avert_run_filepath = "./test_scenarios/900MW_UPV_RM_061025.xlsx"
-)
+# utilitypv_900_rocky_test_hourly <- test_hourly(
+#   avertr_results = utilitypv_900_rocky,
+#   avert_run_filepath = "./test_scenarios/900MW_UPV_RM_061025.xlsx"
+# )
 
 
 
@@ -125,10 +124,10 @@ rooftoppv_20_texas_annual <- test_annual(
 )
 
 ### hourly -----------
-rooftoppv_20_texas_hourly <- test_hourly(
-  rooftoppv_20_texas,
-  avert_run_filepath = "./test_scenarios/20MW_RPV_TX_06112025.xlsx"
-)
+# rooftoppv_20_texas_hourly <- test_hourly(
+#   rooftoppv_20_texas,
+#   avert_run_filepath = "./test_scenarios/20MW_RPV_TX_06112025.xlsx"
+# )
 
 
 
@@ -153,10 +152,10 @@ flat_2193_ne_annual <- test_annual(
 )
 
 ### hourly -----------
-flat_2193_ne_hourly <- test_hourly(
-  flat_2193_ne,
-  avert_run_filepath = "./test_scenarios/2193MW_flat_load_reduction_NE.xlsx"
-)
+# flat_2193_ne_hourly <- test_hourly(
+#   flat_2193_ne,
+#   avert_run_filepath = "./test_scenarios/2193MW_flat_load_reduction_NE.xlsx"
+# )
 
 
 
@@ -190,7 +189,7 @@ multiple_tennessee_annual <- test_annual(
 # # Note: this doesn't work because for some reason, seemingly on for this file,
 # #   the datetimes get read in as days from 1899-12-30, which is how Excel stores
 # #   them, rather than as parseable strings. Working on fixing.
-# multiple_tennessee_annual <- test_hourly(
+# multiple_tennessee_hourly <- test_hourly(
 #   multiple_tennessee,
 #   avert_run_filepath = "./test_scenarios/multiple_TN_08152025.xlsx"
 # )
@@ -220,40 +219,16 @@ multiple_midwest <- generate_reduction(
 
 ## Test =============
 ### annual -----------
+multiple_midwest_annual <- test_annual(
+  multiple_midwest,
+  avert_run_filepath = "./test_scenarios/multiple_MW_08162025.xlsx"
+)
 
 ### hourly -----------
-
-  
-
-
-
-
-
-
-
-
-
-
-# 1. Run new tests for new features, incl. combinations!!
-
-# apply_reduction_top_x_pct_hours
-# 
-# reduce_x_pct_in_top_hours
-# 
-# reduce_annual_generation_by_x_gwh
-# reduce_each_hour_by_x_mw
-# # (You may need to adjust load for EE)
-
-# 2. spot check the R^2s and stuff for some recent runs
-
-
-
-
-
-
-
-
-
+# multiple_midwest_hourly <- test_hourly(
+#   multiple_midwest,
+#   avert_run_filepath = "./test_scenarios/multiple_MW_08162025.xlsx"
+# )
 
 
 
