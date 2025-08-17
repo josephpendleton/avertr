@@ -22,9 +22,9 @@ arp_out <- prepare_rdfs(
   2023
 )
 
-iwalk(
+purrr::iwalk(
   arp_out,
-  ~ write_rds(
+  ~ readr::write_rds(
     .x,
     file.path(".", "avertr_rdfs", paste0("avertr_rdf_", .y, "_2023", ".rds"))
   )

@@ -15,7 +15,7 @@ osw_6000_ny <- generate_reduction(
   project_year = "2023",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
   avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New York_2023.rds"
-) |> 
+) |>
   avert(
     project_region = "New York",
     project_year = "2023",
@@ -45,13 +45,13 @@ flat_500_ca <- adjust_reduction(
   unadjusted_hourly_load_reduction = rep(500, 8760),
   project_year = 2023,
   project_region = "California"
-) |> 
+) |>
   avert(
     project_region = "California",
     project_year = "2023",
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
   )
-  
+
 
 ## Test =============
 ### annual -----------
@@ -76,7 +76,7 @@ utilitypv_900_rocky <- generate_reduction(
   project_year = "2023",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
   avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Rocky Mountains_2023.rds"
-) |> 
+) |>
   avert(
     project_region = "Rocky Mountains",
     project_year = "2023",
@@ -108,7 +108,7 @@ rooftoppv_20_texas <- generate_reduction(
   project_year = "2023",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
   avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Texas_2023.rds"
-) |> 
+) |>
   avert(
     project_region = "Texas",
     project_year = "2023",
@@ -142,7 +142,7 @@ flat_2193_ne <- avert(
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
   avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New England_2023.rds"
 )
-  
+
 
 ## Test =============
 ### annual -----------
@@ -170,7 +170,7 @@ multiple_tennessee <- generate_reduction(
   project_year = "2023",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
   avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
-) |> 
+) |>
   avert(
     project_region = "Tennessee",
     project_year = "2023",
@@ -208,7 +208,7 @@ multiple_midwest <- generate_reduction(
   project_year = "2023",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
   avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Midwest_2023.rds"
-) |> 
+) |>
   avert(
     project_region = "Midwest",
     project_year = "2023",

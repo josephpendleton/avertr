@@ -23,35 +23,35 @@ project_capacity_mw <- 500
 
 # LOAD OBJECTS ######
 # BAU fossil fuel load in the region; 8760 hours
-bau_load_hourly_mw <- read_excel(
+bau_load_hourly_mw <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "F3:F8763"
-) |> 
-  pull(`Regional Load (MW)`)
+) |>
+  dplyr::pull(`Regional Load (MW)`)
 
 # Hourly capacity factor; remove the 24 hours corresponding to 2/29
-capacity_factor_hourly <- read_excel(
+capacity_factor_hourly <- readxl::read_excel(
   "./avert-main-module-v4.3.xls",
   sheet = "EERE_Default",
   range = "AJ2:AJ8786"
-) |> 
-  #slice(c(1:1416, 1441:n())) |> 
-  slice(c(1:8760)) |> # NOTE!!! This is the wrong slice, but it's the one AVERT
+) |>
+  #slice(c(1:1416, 1441:n())) |>
+  dplyr::slice(c(1:8760)) |> # NOTE!!! This is the wrong slice, but it's the one AVERT
   #   uses. The above, commented-out slice removes the correct dates.
   #   However, using what AVERT does for now for validation.
-  pull(`Offshore Wind`)
+  dplyr::pull(`Offshore Wind`)
 
 # # 8760 as datetime
 # # NOTE: You should replace this w the way simpler version from avertr_setup
-datetime_8760 <- read_excel(
+datetime_8760 <- readxl::read_excel(
   "./avert-main-module-v4.3.xls",
   sheet = "EERE_Default",
   range = "A2:A8786"
 ) |>
-  mutate(
-    Date = case_when(
-      second(Date) != 0 ~ ceiling_date(
+  dplyr::mutate(
+    Date = dplyr::case_when(
+      lubridate::second(Date) != 0 ~ lubridate::ceiling_date(
         Date,
         unit = "second",
         change_on_boundary = TRUE
@@ -59,17 +59,17 @@ datetime_8760 <- read_excel(
       TRUE ~ Date
     )
   ) |>
-  filter(!between(Date, ymd_hms("2012-02-29 00:00:00"), ymd_hms("2012-02-29 23:00:00"))) |>
-  pull(Date)
+  dplyr::filter(!dplyr::between(Date, lubridate::ymd_hms("2012-02-29 00:00:00"), lubridate::ymd_hms("2012-02-29 23:00:00"))) |>
+  dplyr::pull(Date)
 
 # NEI Emission factors
-nei_efs <- read_excel(
+nei_efs <- readxl::read_excel(
   "./avert-main-module-v4.3.xls",
   sheet = "NEI_EmissionRates",
   range = "G6:AR4636"
-) |> 
-  filter(str_detect(`ORSPL|Unit|Region`, "New England")) |> 
-  select(`Full Name`, PM2.5...36:NH3...38)
+) |>
+  dplyr::filter(stringr::str_detect(`ORSPL|Unit|Region`, "New England")) |>
+  dplyr::select(`Full Name`, PM2.5...36:NH3...38)
 
 
 
@@ -77,70 +77,70 @@ nei_efs <- read_excel(
 # And maybe faster. Easier to just read everything in at once and then grab
 #   values later? Woudl be hard w datatypes (altho u could just read all
 #   as character and coerce later...)
-generation_ff_load_bins <- read_excel(
+generation_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H4:CD120"
-) |> 
+) |>
   as.data.frame()
 
-so2_ozone_ff_load_bins <- read_excel(
+so2_ozone_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H2004:CD2120"
-) |> 
+) |>
   as.data.frame()
 
-so2_non_ff_load_bins <- read_excel(
+so2_non_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H4004:CD4120"
-) |> 
+) |>
   as.data.frame()
 
-nox_ozone_ff_load_bins <- read_excel(
+nox_ozone_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H6004:CD6120"
-) |> 
+) |>
   as.data.frame()
 
-nox_non_ff_load_bins <- read_excel(
+nox_non_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H8004:CD8120"
-) |> 
+) |>
   as.data.frame()
 
-co2_ozone_ff_load_bins <- read_excel(
+co2_ozone_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H10004:CD10120"
-) |> 
+) |>
   as.data.frame()
 
-co2_non_ff_load_bins <- read_excel(
+co2_non_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H12004:CD12120"
-) |> 
+) |>
   as.data.frame()
 
-heat_ozone_ff_load_bins <- read_excel(
+heat_ozone_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H14004:CD14120"
-) |> 
+) |>
   as.data.frame()
 
-heat_non_ff_load_bins <- read_excel(
+heat_non_ff_load_bins <- readxl::read_excel(
   "./regional_data_files/avert-rdf-2023-epa_netgen_pmvocnh3-new-england-20240223-1642.xlsx",
   sheet = "Data",
   range = "H16004:CD16120"
-) |> 
+) |>
   as.data.frame()
 
-ff_load_bins_list <- lst(
+ff_load_bins_list <- dplyr::lst(
   generation_ff_load_bins,
   so2_ozone_ff_load_bins,
   so2_non_ff_load_bins,
@@ -152,8 +152,8 @@ ff_load_bins_list <- lst(
   heat_non_ff_load_bins,
 )
 
-ff_load_bins_list <- ff_load_bins_list |> 
-  map(as_tibble)
+ff_load_bins_list <- ff_load_bins_list |>
+  purrr::map(dplyr::as_tibble)
 
 # CALC NEW LOAD BINS #######
 # Based on the project, find the new ff load bins
@@ -165,10 +165,10 @@ capacity_hourly_mw <- capacity_factor_hourly * project_capacity_mw
 new_load_hourly_mw <- bau_load_hourly_mw - capacity_hourly_mw
 
 # This is a vector containing the set of ff load bins for the reion
-ff_load_bins_key <- colnames(generation_ff_load_bins) |> 
+ff_load_bins_key <- colnames(generation_ff_load_bins) |>
   as.numeric()
 
-# Remove NAs (note: do this more cleany, it's weird to coerce all names to 
+# Remove NAs (note: do this more cleany, it's weird to coerce all names to
 #   numeric and rely on conames being NA, better to just read all as character,
 #   filter w/ regexp OR even based on location (bc you knwo which cols you
 #   don't want to selec) and then convert to numeric)
@@ -242,7 +242,7 @@ ff_load_bins_8760
 # 2. Doesn't seem like they ever really give load BINS for BAU scenario
 
 # 3. In ManualEERE Entry, they give extra renewable capacity. Reading it in here:
-AVERT_capacity_hourly_mw <- read_excel(
+AVERT_capacity_hourly_mw <- readxl::read_excel(
   "./test_scenarios/500MW_OSW_NE_04012205.xls",
   sheet = "ManualEEREEntry",
   range = "I8:I8768"
@@ -255,7 +255,7 @@ cap_diffs |> summary()
 
 # Interesting! Almost all 0, but some larger values too. Which ones?
 # These are the values that don't equal 0
-cap_diffs |> filter(`Total Change (MW)` != 0)
+cap_diffs |> dplyr::filter(`Total Change (MW)` != 0)
 
 # These are the indices of those values
 which(cap_diffs != 0)
@@ -305,11 +305,11 @@ capacity_hourly_mw[1417:1440] - (-1 * AVERT_capacity_hourly_mw[1417:1440, ])
 # You can verify that these capacity factors are REALLY the ones that should be
 #   cut by just looking at the EERE_Default sheet and verifying that they are
 #   the rows corresponding to 2/29
-cfs_that_really_should_be_cut <- read_excel(
+cfs_that_really_should_be_cut <- readxl::read_excel(
   "./test_scenarios/500MW_OSW_NE_04012205.xls",
   sheet = "EERE_Default",
   range = "AJ1419:AJ1442", col_names = FALSE
-) 
+)
 
 # Here they are
 cfs_that_really_should_be_cut

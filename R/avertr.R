@@ -49,31 +49,31 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
     )
   }
 
-  load_bin_data_ap_region <- read_rds(avertr_rdf_filepath) |>
-    pluck(paste0("load_bin_data_ap_", project_region))
+  load_bin_data_ap_region <- readr::read_rds(avertr_rdf_filepath) |>
+    purrr::pluck(paste0("load_bin_data_ap_", project_region))
 
-  bau_case_ap_region <- read_rds(avertr_rdf_filepath) |>
-    pluck(paste0("bau_case_ap_", project_region))
+  bau_case_ap_region <- readr::read_rds(avertr_rdf_filepath) |>
+    purrr::pluck(paste0("bau_case_ap_", project_region))
 
   # Vector of each hour of the year 2023
   datetime_8760 <- seq(
-    from = ymd_hms("2023-01-01 00:00:00"),
+    from = lubridate::ymd_hms("2023-01-01 00:00:00"),
     by = "1 hour",
     length.out = 8760
   )
 
   # This is the BAU load
   bau_load_8760 <- bau_case_ap_region |>
-    distinct(datetime_8760_col, load_8760_col) |>
-    pull(load_8760_col)
+    dplyr::distinct(datetime_8760_col, load_8760_col) |>
+    dplyr::pull(load_8760_col)
 
   # NEI emission factors (used to calculate PM2.5, VOCs, and NH3 based on heat)
-  nei_efs <- xlsx_cells(
+  nei_efs <- tidyxl::xlsx_cells(
     avert_main_module_filepath,
     sheets = "NEI_EmissionRates"
   )
 
-  infrequent_so2_event_egus_raw <- xlsx_cells(
+  infrequent_so2_event_egus_raw <- tidyxl::xlsx_cells(
     avert_main_module_filepath,
     sheets = "Library"
   )
@@ -84,16 +84,16 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   #   region and capacity
   if (is.null(hourly_load_reduction)) {
     # Capacity factors
-    cfs <- xlsx_cells(
+    cfs <- tidyxl::xlsx_cells(
       avert_main_module_filepath,
       sheets = "EERE_Default",
     )
 
     # Use unpivotr to clean, then filter for appropriate region and project type
     cfs <- cfs |>
-      behead("up-left", "Region") |>
-      behead("up", "Project Type") |>
-      filter(
+      unpivotr::behead("up-left", "Region") |>
+      unpivotr::behead("up", "Project Type") |>
+      dplyr::filter(
         Region == project_region &
         `Project Type` == project_type &
         row <= 8786
@@ -103,8 +103,8 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
       # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
       #   and removes 12/31. It should be filter(!(row %in% 1419:1442)). But
       #   this is the filter AVERT uses.
-      filter(row %in% 3:8762) |>
-      pull(numeric)
+      dplyr::filter(row %in% 3:8762) |>
+      dplyr::pull(numeric)
 
     # This is the hourly load reduction
     hourly_load_reduction <- capacity_factor_8760 * project_capacity
@@ -115,8 +115,8 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
   # This is a vector containing the set of ff load bins for the region
   ff_load_bin_key <- load_bin_data_ap_region |>
-    distinct(ff_load_bin_col) |>
-    pull(ff_load_bin_col)
+    dplyr::distinct(ff_load_bin_col) |>
+    dplyr::pull(ff_load_bin_col)
 
 
 
@@ -169,12 +169,12 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
   # Make the binned load into a tibble and bind it with a column for date time
   #   and a column for the raw load
-  ff_load_bin_8760 <- bind_cols(
+  ff_load_bin_8760 <- dplyr::bind_cols(
     ff_load_bin_8760_col = ff_load_bin_8760,
     datetime_8760_col = datetime_8760,
     load_8760_col = new_load_8760
   ) |>
-    relocate(ff_load_bin_8760_col, .after = load_8760_col)
+    dplyr::relocate(ff_load_bin_8760_col, .after = load_8760_col)
 
 
 
@@ -185,10 +185,10 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   #   of the tibble by returning all matches. And throw an error if any given
   #   load bin from ff_load_bin_8760s_bau doesn't have a match in
   #   load_bin_data_ap.
-  assigned_data <- inner_join(
+  assigned_data <- dplyr::inner_join(
     ff_load_bin_8760,
     load_bin_data_ap_region,
-    by = join_by(ff_load_bin_8760_col == ff_load_bin_col),
+    by = dplyr::join_by(ff_load_bin_8760_col == ff_load_bin_col),
     na_matches = "never",
     unmatched = c("error", "drop"),
     relationship = "many-to-many"
@@ -207,33 +207,33 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
     # These are the rows in the ozone season
     oz <- assigned_data |>
-      filter(
-        between(
+      dplyr::filter(
+        dplyr::between(
           datetime_8760_col,
-          ymd_hms("2023-05-01 00:00:00"),
-          ymd_hms("2023-09-30 23:00:00")
+          lubridate::ymd_hms("2023-05-01 00:00:00"),
+          lubridate::ymd_hms("2023-09-30 23:00:00")
         )
       )
 
     # These are the rows not in the ozone season
     non <- assigned_data |>
-      anti_join(oz, by = join_by(datetime_8760_col))
+      dplyr::anti_join(oz, by = dplyr::join_by(datetime_8760_col))
 
     # For the rows in the ozone season, deselect the non-ozone season data
     oz <- oz |>
-      select(datetime_8760_col:data_next_bin_generation, contains("ozone")) |>
+      dplyr::select(datetime_8760_col:data_next_bin_generation, dplyr::contains("ozone")) |>
       # Rename so that we can easily bind rows below
-      rename_with(~ str_replace(., "_ozone", ""))
+      dplyr::rename_with(~ stringr::str_replace(., "_ozone", ""))
 
     # For the rows in the non-ozone season, deselect the ozone season data
     non <- non |>
-      select(datetime_8760_col:data_next_bin_generation, contains("non")) |>
+      dplyr::select(datetime_8760_col:data_next_bin_generation, dplyr::contains("non")) |>
       # Rename so that we can easily bind rows below
-      rename_with(~ str_replace(., "_non", ""))
+      dplyr::rename_with(~ stringr::str_replace(., "_non", ""))
 
     # Bind rows, re-order by time
-    assigned_data_ozoned <- bind_rows(oz, non) |>
-      arrange(datetime_8760_col)
+    assigned_data_ozoned <- dplyr::bind_rows(oz, non) |>
+      dplyr::arrange(datetime_8760_col)
 
     return(assigned_data_ozoned)
   }
@@ -250,21 +250,21 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   #   we linearly interpolate between the two load bins.
 
   interpolate <- function(assigned_data) {
-    ff_load_bin_8760 <- pull(assigned_data, ff_load_bin_8760_col)
+    ff_load_bin_8760 <- dplyr::pull(assigned_data, ff_load_bin_8760_col)
 
-    ff_load_bin_8760_next <- pull(assigned_data, ff_load_bin_next_col)
+    ff_load_bin_8760_next <- dplyr::pull(assigned_data, ff_load_bin_next_col)
 
-    load_8760 <- pull(assigned_data, load_8760_col)
+    load_8760 <- dplyr::pull(assigned_data, load_8760_col)
 
-    metadata <- select(assigned_data, datetime_8760_col:full_unit_name)
+    metadata <- dplyr::select(assigned_data, datetime_8760_col:full_unit_name)
 
     # Select all the load bin data
     current_data <- assigned_data |>
-      select(contains("data") & !contains("next"))
+      dplyr::select(dplyr::contains("data") & !dplyr::contains("next"))
 
     # Select all the load bin data for the next load bin
     next_data <- assigned_data |>
-      select(contains("data") & contains("next"))
+      dplyr::select(dplyr::contains("data") & dplyr::contains("next"))
 
     # Do the interpolation. "cd" and "nd" for "current data" and "next data."
     interpolate_inner <- function(cd, nd) {
@@ -277,10 +277,10 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
     # modify2 used because it returns a tibble. interpolate_inner is a
     #   vectorized function and we apply it pairwise to each column of the
     #   current_data and next_data tables.
-    interped_inner <- modify2(current_data, next_data, interpolate_inner)
+    interped_inner <- purrr::modify2(current_data, next_data, interpolate_inner)
 
     # Add back the "metadata"
-    interped_inner <- bind_cols(metadata, interped_inner)
+    interped_inner <- dplyr::bind_cols(metadata, interped_inner)
 
     return(interped_inner)
   }
@@ -296,25 +296,25 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   #   we subtract the BAU values from the given scenario's values to get the
   #   difference in emissions, i.e., the averted emissions.
   differences_final_metadata <- scenario_case |>
-    select(c(datetime_8760_col:full_unit_name))
+    dplyr::select(c(datetime_8760_col:full_unit_name))
 
   interped_data_regions_data <- scenario_case |>
-    select(!c(datetime_8760_col:full_unit_name))
+    dplyr::select(!c(datetime_8760_col:full_unit_name))
 
   bau_case_ap_region_data <- bau_case_ap_region |>
-    select(!c(datetime_8760_col:full_unit_name))
+    dplyr::select(!c(datetime_8760_col:full_unit_name))
 
   differences_final <- interped_data_regions_data |>
-    map2(bau_case_ap_region_data, ~ .x - .y) |>
-    bind_cols(differences_final_metadata) |>
-    relocate(
+    purrr::map2(bau_case_ap_region_data, ~ .x - .y) |>
+    dplyr::bind_cols(differences_final_metadata) |>
+    dplyr::relocate(
       data_generation:data_heat,
-      .after = last_col()
+      .after = dplyr::last_col()
     )
 
   # Round to 3 to reflect AVERT's rounding
   differences_final <- differences_final |>
-    mutate(across(c(data_generation:data_heat), ~ round(.x, 3)))
+    dplyr::mutate(dplyr::across(c(data_generation:data_heat), ~ round(.x, 3)))
 
 
 
@@ -324,27 +324,27 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
   # We read in emission rates above. Now we tidy them with unpivotr.
   nei_efs <- nei_efs |>
-    filter(row > 4) |>
-    behead("up", "year") |>
-    behead("up", "data_measure") |>
-    behead("left", "region") |>
-    behead("left", "state") |>
-    behead("left", "plant") |>
-    behead("left", "orspl") |>
-    behead("left", "unit") |>
-    behead("left", "full_name") |>
-    behead("left", "county") |>
-    behead("left", "orspl|unit|region")
+    dplyr::filter(row > 4) |>
+    unpivotr::behead("up", "year") |>
+    unpivotr::behead("up", "data_measure") |>
+    unpivotr::behead("left", "region") |>
+    unpivotr::behead("left", "state") |>
+    unpivotr::behead("left", "plant") |>
+    unpivotr::behead("left", "orspl") |>
+    unpivotr::behead("left", "unit") |>
+    unpivotr::behead("left", "full_name") |>
+    unpivotr::behead("left", "county") |>
+    unpivotr::behead("left", "orspl|unit|region")
 
   # Select the appropriate project year, region, and data measures
   nei_efs <- nei_efs |>
-    filter(
+    dplyr::filter(
       year == project_year &
       region == project_region &
       data_measure %in% c("PM2.5", "VOCs", "NH3")
     ) |>
-    select(numeric, data_measure, orspl, unit) |>
-    pivot_wider(names_from = data_measure, values_from = numeric)
+    dplyr::select(numeric, data_measure, orspl, unit) |>
+    tidyr::pivot_wider(names_from = data_measure, values_from = numeric)
 
   differences_final <- differences_final |>
     # Set up so that if there are rows in y that don't match, they just get
@@ -352,9 +352,9 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
     #   Every unit should have a match in the NEI emission factors (but not
     #   vice versa). And relationship is many-to-one, meaning each row from x
     #   should match with at most one row in y.
-    inner_join(
+    dplyr::inner_join(
       nei_efs,
-      by = join_by(orispl_code == orspl, unit_code == unit),
+      by = dplyr::join_by(orispl_code == orspl, unit_code == unit),
       na_matches = "never",
       unmatched = c("error", "drop"),
       relationship = "many-to-one"
@@ -362,16 +362,16 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
   # Calculate NEI data
   differences_final <- differences_final |>
-    mutate(
+    dplyr::mutate(
       data_pm25 = data_heat * PM2.5,
       data_voc = data_heat * VOCs,
       data_nh3 = data_heat * NH3
     ) |>
-    select(!PM2.5:NH3)
+    dplyr::select(!PM2.5:NH3)
 
   # Round to 6 to reflect AVERT's rounding
   differences_final <- differences_final |>
-    mutate(across(data_pm25:data_nh3, ~ round(.x, 6)))
+    dplyr::mutate(dplyr::across(data_pm25:data_nh3, ~ round(.x, 6)))
 
 
 
@@ -381,43 +381,43 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   # The Library sheet has multiple tables in it, so get the start row of the
   #   infrequent SO2 EGU table.
   infrequent_so2_table_start_row <- infrequent_so2_event_egus_raw |>
-    filter(character == "Table 3: EGUs with infrequent SO2 emission events") |>
-    pull(row) |>
+    dplyr::filter(character == "Table 3: EGUs with infrequent SO2 emission events") |>
+    dplyr::pull(row) |>
     # Add four to account for header rows
     (\(x) x + 4)()
 
   infrequent_so2_table_end_row <- infrequent_so2_event_egus_raw |>
-    filter(character == "Table 4: VMT assumptions") |>
-    pull(row) |>
+    dplyr::filter(character == "Table 4: VMT assumptions") |>
+    dplyr::pull(row) |>
     # Subtract 1 to get to the previous row
     (\(x) x - 1)()
 
   # Filter for the correct range and remove blank cells
   infrequent_so2_event_egus <- infrequent_so2_event_egus_raw |>
-    filter(
-      between(
+    dplyr::filter(
+      dplyr::between(
         row,
         infrequent_so2_table_start_row,
         infrequent_so2_table_end_row
       )
     ) |>
-    filter(!is_blank)
+    dplyr::filter(!is_blank)
 
   # Tidy with unpivotr
   infrequent_so2_event_egus <- infrequent_so2_event_egus |>
-    behead("up", "Year") |>
-    behead("up", "Region") |>
-    behead("up", "Actual SO2 emissions (lb)") |>
-    behead("up", "Regionwide SO2 % diff - RDFs") |>
-    behead("up", "Regionwide SO2 % diff - corrected") |>
-    behead("up", "EGU count") |>
-    behead("left-up", "egu_number") |>
-    behead("left", "field")
+    unpivotr::behead("up", "Year") |>
+    unpivotr::behead("up", "Region") |>
+    unpivotr::behead("up", "Actual SO2 emissions (lb)") |>
+    unpivotr::behead("up", "Regionwide SO2 % diff - RDFs") |>
+    unpivotr::behead("up", "Regionwide SO2 % diff - corrected") |>
+    unpivotr::behead("up", "EGU count") |>
+    unpivotr::behead("left-up", "egu_number") |>
+    unpivotr::behead("left", "field")
 
   # Filter for the appropriate project year and region, and the only fields we
   #   really need are the plant and unit IDs
   infrequent_so2_event_egus <- infrequent_so2_event_egus |>
-    filter(
+    dplyr::filter(
       Region == project_region &
       project_year == Year &
       # Note that the "Unit" field indicates unit ID, and that unit IDs are
@@ -430,21 +430,21 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
     # Tidy with unpivotr
     infrequent_so2_event_egus <- infrequent_so2_event_egus |>
-      pack() |>
-      select(egu_number, value, field) |>
-      unpack() |>
-      spatter(field)
+      unpivotr::pack() |>
+      dplyr::select(egu_number, value, field) |>
+      unpivotr::unpack() |>
+      unpivotr::spatter(field)
 
     infrequent_so2_event_egus <- infrequent_so2_event_egus |>
-      mutate(Unit = as.character(Unit))
+      dplyr::mutate(Unit = as.character(Unit))
 
     # Left join, so keeping all rows from differences_final. Ensure that all
     #   EGUs from infrequent_so2_event_egus get matched, and that at most one
     #   EGU gets matched to a given row of differences_final
     differences_final <- differences_final |>
-      left_join(
+      dplyr::left_join(
         infrequent_so2_event_egus,
-        by = join_by(orispl_code == ORSPL, unit_code == Unit),
+        by = dplyr::join_by(orispl_code == ORSPL, unit_code == Unit),
         na_matches = "never",
         unmatched = "error",
         relationship = "many-to-one"
@@ -453,8 +453,8 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
     # Replace all matches (i.e., rows where there's a successful join, s.t.
     #   egu_number is not NA) with 0
     differences_final <- differences_final |>
-      mutate(
-        data_so2 = case_when(!is.na(egu_number) ~ 0, TRUE ~ data_so2)
+      dplyr::mutate(
+        data_so2 = dplyr::case_when(!is.na(egu_number) ~ 0, TRUE ~ data_so2)
       )
   }
 
@@ -468,10 +468,10 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   #   we do zero those cases (not sure how else we'd deal with them since
   #   there's no next load bin to interpolate with.)
   differences_final <- differences_final |>
-    mutate(
-      across(
-        contains("data"),
-        ~ if_else(
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::contains("data"),
+        ~ dplyr::if_else(
           load_8760_col >= max(ff_load_bin_key) |
             load_8760_col < min(ff_load_bin_key),
           0,
@@ -487,19 +487,19 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
   # Vector of total generation change in each hour
   hourly_resulting_generation_change <- differences_final |>
-    summarize(
+    dplyr::summarize(
       data_generation_summed = sum(data_generation),
       .by = datetime_8760_col
     ) |>
-    arrange(datetime_8760_col) |>
-    pull(data_generation_summed)
+    dplyr::arrange(datetime_8760_col) |>
+    dplyr::pull(data_generation_summed)
 
   # Signal to noise comes from regressing the generation change calculated by
   #   avertr onto the hourly load change (as input by user, either directly
   #   or through the scenario they specify).
   hourly_load_change <- (-1 * hourly_load_reduction)
 
-  signal_to_noise <- lm(
+  signal_to_noise <- stats::lm(
     hourly_resulting_generation_change ~ hourly_load_change
   ) |>
     summary()
@@ -518,7 +518,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
 
   # COMBINE AND RETURN ############
-  avertr_results <- lst(
+  avertr_results <- dplyr::lst(
     differences_final,
     signal_to_noise,
     pct_hourly_load_reduction
@@ -555,27 +555,27 @@ generate_reduction <- function(
   apply_reduction_top_x_pct_hours <- apply_reduction_top_x_pct_hours / 100
   reduce_x_pct_in_top_hours <- reduce_x_pct_in_top_hours / 100
 
-  bau_case_ap_region <- read_rds(avertr_rdf_filepath) |>
-    pluck(paste0("bau_case_ap_", project_region))
+  bau_case_ap_region <- readr::read_rds(avertr_rdf_filepath) |>
+    purrr::pluck(paste0("bau_case_ap_", project_region))
 
   # Vector of each hour of the year 2023
   datetime_8760 <- seq(
-    from = ymd_hms("2023-01-01 00:00:00"),
+    from = lubridate::ymd_hms("2023-01-01 00:00:00"),
     by = "1 hour",
     length.out = 8760
   )
 
   # This is the BAU load
   bau_load_8760 <- bau_case_ap_region |>
-    distinct(datetime_8760_col, load_8760_col) |>
-    pull(load_8760_col)
+    dplyr::distinct(datetime_8760_col, load_8760_col) |>
+    dplyr::pull(load_8760_col)
 
   hourly_load_reduction <- rep(0, 8760)
 
   # This is the T&D losses for the region
   t_and_d_loss_factor <- t_and_d_losses |>
-    filter(`Data year` == project_year) |>
-    pull(project_region)
+    dplyr::filter(`Data year` == project_year) |>
+    dplyr::pull(project_region)
 
 
 
@@ -592,7 +592,7 @@ generate_reduction <- function(
     # The indices where the top hours are located
     top_hour_indices <- bau_load_8760 |>
       sort(decreasing = TRUE, index.return = TRUE) |>
-      pluck("ix") |>
+      purrr::pluck("ix") |>
       (\(x) x[1:number_of_top_hours])()
 
     # Get the appropriate hourly reductions for each hour
@@ -645,7 +645,7 @@ generate_reduction <- function(
     rooftop_solar_pv_capacity_mw != 0
   ) {
     # Capacity factors
-    cfs <- xlsx_cells(
+    cfs <- tidyxl::xlsx_cells(
       avert_main_module_filepath,
       sheets = "EERE_Default",
     )
@@ -653,29 +653,29 @@ generate_reduction <- function(
     # Use unpivotr to clean, filtering for the appropriate region. Gets capacity
     #   factors for all four technologies.
     cfs <- cfs |>
-      behead("up-left", "Region") |>
-      behead("up", "Project Type") |>
-      behead("left", "Date") |>
-      behead("left", "Hour") |>
-      filter(
+      unpivotr::behead("up-left", "Region") |>
+      unpivotr::behead("up", "Project Type") |>
+      unpivotr::behead("left", "Date") |>
+      unpivotr::behead("left", "Hour") |>
+      dplyr::filter(
         Region == project_region &
           row <= 8786
       ) |>
-      pack() |>
-      select(row, value, `Project Type`) |>
-      unpack() |>
-      spatter(`Project Type`) |>
-      select(!row)
+      unpivotr::pack() |>
+      dplyr::select(row, value, `Project Type`) |>
+      unpivotr::unpack() |>
+      unpivotr::spatter(`Project Type`) |>
+      dplyr::select(!row)
 
     cfs <- cfs |>
       # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
       #   and removes 12/31. It should be filter(!(row %in% 1419:1442)). But
       #   this is the filter AVERT uses.
-      slice(1:8760) |>
+      dplyr::slice(1:8760) |>
       # Re-arrange columns to do the matrix multiplication below,  keeping the
       #   four technologies in the same order as a user would input capacities for
       #   them
-      relocate(`Onshore Wind`, `Offshore Wind`, `Rooftop PV`, `Utility PV`)
+      dplyr::relocate(`Onshore Wind`, `Offshore Wind`, `Rooftop PV`, `Utility PV`)
 
     # Vector of the four nameplate capacities the user has entered. Each has a
     #   default value of 0.
@@ -689,7 +689,7 @@ generate_reduction <- function(
     # Multiply each renewable capacity factor vector by the matching
     #   capacity input by the user, then sum them together.
     summed_renewables <- cfs |>
-      mutate(
+      dplyr::mutate(
         `Onshore Wind` = `Onshore Wind` * capacity_vector["onshore_wind_capacity_mw"],
         `Offshore Wind` = `Offshore Wind` * capacity_vector["offshore_wind_capacity_mw"],
         `Rooftop PV` = `Rooftop PV` * capacity_vector["rooftop_solar_pv_capacity_mw"],
@@ -697,7 +697,7 @@ generate_reduction <- function(
 
         # Offshore wind is NA for all inland regions, so replace these before
         #   summing
-        `Offshore Wind` = replace_na(`Offshore Wind`, 0),
+        `Offshore Wind` = tidyr::replace_na(`Offshore Wind`, 0),
 
         # The Rooftop PV capacity factor is not adjusted for T&D losses. But
         #   AVERT automatically adjusts it because Rooftop PV generation
@@ -710,7 +710,7 @@ generate_reduction <- function(
 
         summed_renewables = `Onshore Wind` + `Offshore Wind` + `Rooftop PV` + `Utility PV`
       ) |>
-      pull(summed_renewables)
+      dplyr::pull(summed_renewables)
 
     # Add this to whatever load reduction user has already entered.
     hourly_load_reduction <- hourly_load_reduction + summed_renewables
@@ -734,8 +734,8 @@ adjust_reduction <- function(
 ) {
 
   t_and_d_loss_factor <- t_and_d_losses |>
-    filter(`Data year` == project_year) |>
-    pull(project_region)
+    dplyr::filter(`Data year` == project_year) |>
+    dplyr::pull(project_region)
 
   adjusted_hourly_load_reduction <- unadjusted_hourly_load_reduction / (1 - t_and_d_loss_factor)
 
@@ -746,7 +746,7 @@ adjust_reduction <- function(
 
 
 # TRANSMISSION DISTRIBUTION LOSS TABLE ########
-t_and_d_losses <- tribble(
+t_and_d_losses <- dplyr::tribble(
   ~`Data year`, ~Texas, ~`Eastern Interconnect`, ~`Western Interconnect`,
   2017, 0.0560, 0.0700, 0.0813,
   2018, 0.0483, 0.0674, 0.0854,
@@ -758,7 +758,7 @@ t_and_d_losses <- tribble(
 )
 
 t_and_d_losses <- t_and_d_losses |>
-  mutate(
+  dplyr::mutate(
     Carolinas = `Eastern Interconnect`,
     Central = `Eastern Interconnect`,
     Florida = `Eastern Interconnect`,
@@ -774,4 +774,4 @@ t_and_d_losses <- t_and_d_losses |>
     `Rocky Mountains` = `Western Interconnect`,
     `Southwest` = `Western Interconnect`
   ) |>
-  select(!c(`Eastern Interconnect`, `Western Interconnect`))
+  dplyr::select(!c(`Eastern Interconnect`, `Western Interconnect`))

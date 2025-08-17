@@ -18,7 +18,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   # DEFINE/LOAD OBJECTS ############
   # Vector of each hour of the year 2023
   datetime_8760 <- seq(
-    from = ymd_hms(paste0(rdfs_year, "-01-01 00:00:00")),
+    from = lubridate::ymd_hms(paste0(rdfs_year, "-01-01 00:00:00")),
     by = "1 hour",
     length.out = 8760
   )
@@ -31,7 +31,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
 
   # List of all the RDFs as tidyxl-style tibbles
   ff_load_bin_data_raw <- rdf_filepaths |>
-    map(~ xlsx_cells(.x, sheets = "Data"))
+    purrr::map(~ tidyxl::xlsx_cells(.x, sheets = "Data"))
 
 
 
@@ -43,15 +43,15 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   ## Prepare Load Bin Data ======
   # Get the 8760 load in each region in the BAU scenario from the RDFs
   load_8760s_bau <- ff_load_bin_data_raw |>
-    map(~ filter(.x, col == 6 & row >= 4)) |>
-    map(~ pull(.x, numeric))
+    purrr::map(~ dplyr::filter(.x, col == 6 & row >= 4)) |>
+    purrr::map(~ dplyr::pull(.x, numeric))
 
   # Clean the load bin data
   ff_load_bin_data <- ff_load_bin_data_raw |>
     # row > 1 to filter out first header row in each RDF, col > 8 to get rid of
     #   data related to hourly load. Also filter out a range of cells which
     #   would otherwise interfere with behead() calls below.
-    map(~ filter(.x, row > 1 & col >= 8 & !(row == 2 & col >= 15)))
+    purrr::map(~ dplyr::filter(.x, row > 1 & col >= 8 & !(row == 2 & col >= 15)))
 
   # To save some memory
   rm(ff_load_bin_data_raw)
@@ -70,44 +70,44 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   information on each EGU's across all the different ff load bins, for the
   #   given data measure, for the given region. Let's call each of these
   #   elements a "data measure table".
-  ff_load_bin_data <- expand_grid(ff_load_bin_data, row_ranges) |>
-    pmap(~ filter(.x, row %in% .y))
+  ff_load_bin_data <- tidyr::expand_grid(ff_load_bin_data, row_ranges) |>
+    purrr::pmap(~ dplyr::filter(.x, row %in% .y))
 
   # Next we use unpivotr to (kinda) tidy the data
-  ff_load_bin_data <- map(
+  ff_load_bin_data <- purrr::map(
     ff_load_bin_data,
     ~ .x |>
-      behead("up-left", "data_measure") |>
-      behead("up-left", "load_bin_indicator") |>
-      behead("up", "ff_load_bin_col") |>
-      behead("left", "state") |>
-      behead("left", "county") |>
-      behead("left", "lat") |>
-      behead("left", "lon") |>
-      behead("left", "fuel_type") |>
-      behead("left", "orispl_code") |>
-      behead("left", "unit_code") |>
-      behead("left", "full_unit_name")
+      unpivotr::behead("up-left", "data_measure") |>
+      unpivotr::behead("up-left", "load_bin_indicator") |>
+      unpivotr::behead("up", "ff_load_bin_col") |>
+      unpivotr::behead("left", "state") |>
+      unpivotr::behead("left", "county") |>
+      unpivotr::behead("left", "lat") |>
+      unpivotr::behead("left", "lon") |>
+      unpivotr::behead("left", "fuel_type") |>
+      unpivotr::behead("left", "orispl_code") |>
+      unpivotr::behead("left", "unit_code") |>
+      unpivotr::behead("left", "full_unit_name")
   )
 
   # Get an ordered list of the names of the data measures
   data_measures <- ff_load_bin_data |>
-    map(~ unique(pull(.x, data_measure)))
+    purrr::map(~ unique(dplyr::pull(.x, data_measure)))
 
   # Set the names of each table to correspond with its data measure
-  ff_load_bin_data <- set_names(ff_load_bin_data, data_measures)
+  ff_load_bin_data <- purrr::set_names(ff_load_bin_data, data_measures)
 
   # Select a subset of columns from the tidyxl-style table, rename a column
   ff_load_bin_data <- ff_load_bin_data |>
-    map(~ select(.x, numeric, ff_load_bin_col:full_unit_name)) |>
-    map(~ rename(.x, data = numeric))
+    purrr::map(~ dplyr::select(.x, numeric, ff_load_bin_col:full_unit_name)) |>
+    purrr::map(~ dplyr::rename(.x, data = numeric))
 
   # Overwrite the unit code with the last word in the unit name. This seems to
   #   be how it's done in AVERT code, and is necessary because the default
   #   unit codes in the RDFs are entered incorrectly (e.g., leading zeros of
   #   unit code "001" get ignored).
   ff_load_bin_data <- ff_load_bin_data |>
-    map(~ mutate(.x, unit_code = word(full_unit_name, -1)))
+    purrr::map(~ dplyr::mutate(.x, unit_code = stringr::word(full_unit_name, -1)))
 
 
   ## Prep Load Bin Keys ======
@@ -117,11 +117,11 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   look the same, so the load bins repeat 9 times for each region (which is
   #   how we want this object structured, for add_next_bin below). Thus we get
   #   an "expanded" list.
-  ff_load_bin_keys_expanded <- map(
+  ff_load_bin_keys_expanded <- purrr::map(
     ff_load_bin_data,
-    ~ unique(pull(.x, ff_load_bin_col))
+    ~ unique(dplyr::pull(.x, ff_load_bin_col))
   ) |>
-    map(as.numeric)
+    purrr::map(as.numeric)
 
   # Then get a non-expanded version of the list
   ff_load_bin_keys <- unique(ff_load_bin_keys_expanded)
@@ -133,48 +133,48 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   fossil-fuel load bin, which is used in the interpolation below.
   add_next_bin <- function(ff_load_bin_data_df, ff_load_bin_key) {
     ff_load_bin_data_df <- ff_load_bin_data_df |>
-      mutate(
+      dplyr::mutate(
         ff_load_bin_col = as.numeric(ff_load_bin_col),
 
         # lead() simply offsets data by 1. Since the df is ordered by load bin,
         #   this gives you the data measure value of the next load bin.
-        data_next_bin = lead(data),
+        data_next_bin = dplyr::lead(data),
 
         # When the load bin is as high as it can go, there's no "next" load bin.
         #   Thus, lead() pulls in the lowest load bin from the next EGU. But
         #   this value should really just be NA. So if_else() to look for when
         #   the load bin is the highest in ff_load_bin_key, and assigns NA to the
         #   value of data in the next load bin, since there is no next load bin.
-        data_next_bin = if_else(
+        data_next_bin = dplyr::if_else(
           ff_load_bin_col == max(ff_load_bin_key),
           NA,
           data_next_bin
         ),
 
         # Do the same thing for the load bin column itself
-        ff_load_bin_next_col = lead(ff_load_bin_col),
-        ff_load_bin_next_col = if_else(
+        ff_load_bin_next_col = dplyr::lead(ff_load_bin_col),
+        ff_load_bin_next_col = dplyr::if_else(
           ff_load_bin_col == max(ff_load_bin_key),
           NA,
           ff_load_bin_next_col
         )
       ) |>
-      relocate(ff_load_bin_next_col, .after = ff_load_bin_col)
+      dplyr::relocate(ff_load_bin_next_col, .after = ff_load_bin_col)
     return(ff_load_bin_data_df)
   }
 
   # Apply add_next_bin()
-  load_bin_data_ap <- map2(ff_load_bin_data, ff_load_bin_keys_expanded,
+  load_bin_data_ap <- purrr::map2(ff_load_bin_data, ff_load_bin_keys_expanded,
                            add_next_bin)
 
   # Rename the data columns to have the name of the appropriate data measure
   #   in them
   load_bin_data_ap <- load_bin_data_ap |>
-    imap(
-      ~ rename_with(
+    purrr::imap(
+      ~ dplyr::rename_with(
         .data = .x,
-        .fn = str_c,
-        .cols = contains("data"),
+        .fn = stringr::str_c,
+        .cols = dplyr::contains("data"),
         .y,
         sep = "_"
       )
@@ -190,26 +190,26 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   data tables. Then, for each of those 14 lists, bind the cols together.
   load_bin_data_ap <- load_bin_data_ap |>
     split(sort(rep(1:length(rdf_filepaths), 9))) |>
-    map(bind_cols) |>
+    purrr::map(dplyr::bind_cols) |>
     suppressMessages()
 
   # As a result, we have a bunch of unnecessarily duplicated columns, so remove
   #   them by only selecting the first instances of those columns, plus all the
   #   data columns.
   load_bin_data_ap <- load_bin_data_ap |>
-    map(~ select(.x, ff_load_bin_col...2:full_unit_name...11 | contains("data"))) |>
+    purrr::map(~ dplyr::select(.x, ff_load_bin_col...2:full_unit_name...11 | dplyr::contains("data"))) |>
     # And rename to remove the ...1, ...2, etc. from the column names
-    map(~ rename_with(
+    purrr::map(~ dplyr::rename_with(
       .data = .x,
-      .fn = str_extract,
+      .fn = stringr::str_extract,
       .cols = ff_load_bin_col...2:full_unit_name...11,
       pattern = ".+(?=\\.\\.\\.)")
     ) |>
-    map(~ relocate(.x, ff_load_bin_col:full_unit_name, .before = 1))
+    purrr::map(~ dplyr::relocate(.x, ff_load_bin_col:full_unit_name, .before = 1))
 
   # One last rename to make column names better
   load_bin_data_ap <- load_bin_data_ap |>
-    map(~ rename(.x,
+    purrr::map(~ dplyr::rename(.x,
                  data_generation = `data_Data: Generation (MW)`,
                  data_next_bin_generation = `data_next_bin_Data: Generation (MW)`,
 
@@ -234,7 +234,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
                  data_next_bin_heat_non = `data_next_bin_Data: Heat Input Not Ozone Season (MMBtu)`))
 
   # Set names based on the rdf_name_vector argument
-  load_bin_data_ap <- set_names(load_bin_data_ap, rdf_name_vector)
+  load_bin_data_ap <- purrr::set_names(load_bin_data_ap, rdf_name_vector)
 
 
 
@@ -279,10 +279,10 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   # Call the function and bind it with a column for the datetime and a column
   #   with the raw load
   ff_load_bin_8760s_bau <- load_8760s_bau |>
-    map2(ff_load_bin_keys, binnify) |>
-    map2(
+    purrr::map2(ff_load_bin_keys, binnify) |>
+    purrr::map2(
       load_8760s_bau,
-      ~ bind_cols(
+      ~ dplyr::bind_cols(
         datetime_8760_col = datetime_8760,
         load_8760_col = .y,
         ff_load_bin_8760_col = .x
@@ -296,13 +296,13 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   to be many-to-many, and rely on the join to expand the size of the
   #   tibble by returning all matches. And throw an error if any given load
   #   bin from ff_load_bin_8760s_bau doesn't have a match in load_bin_data_ap.
-  assigned_data_regions_bau <- map2(
+  assigned_data_regions_bau <- purrr::map2(
     ff_load_bin_8760s_bau,
     load_bin_data_ap,
-    ~inner_join(
+    ~dplyr::inner_join(
       .x,
       .y,
-      join_by(ff_load_bin_8760_col == ff_load_bin_col),
+      dplyr::join_by(ff_load_bin_8760_col == ff_load_bin_col),
       na_matches = "never",
       unmatched = c("error", "drop"),
       relationship = "many-to-many"
@@ -320,39 +320,39 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   ozone_split <- function(assigned_data) {
     # These are the rows in the ozone season
     oz <- assigned_data |>
-      filter(
-        between(
+      dplyr::filter(
+        dplyr::between(
           datetime_8760_col,
-          ymd_hms("2023-05-01 00:00:00"),
-          ymd_hms("2023-09-30 23:00:00")
+          lubridate::ymd_hms("2023-05-01 00:00:00"),
+          lubridate::ymd_hms("2023-09-30 23:00:00")
         )
       )
 
     # These are the rows not in the ozone season
     non <- assigned_data |>
-      anti_join(oz, by = join_by(datetime_8760_col))
+      dplyr::anti_join(oz, by = dplyr::join_by(datetime_8760_col))
 
     # For the rows in the ozone season, deselect the non-ozone season data
     oz <- oz |>
-      select(datetime_8760_col:data_next_bin_generation, contains("ozone")) |>
+      dplyr::select(datetime_8760_col:data_next_bin_generation, dplyr::contains("ozone")) |>
       # Rename so that we can easily bind rows below
-      rename_with(~ str_replace(., "_ozone", ""))
+      dplyr::rename_with(~ stringr::str_replace(., "_ozone", ""))
 
     # For the rows in the non-ozone season, deselect the ozone season data
     non <- non |>
-      select(datetime_8760_col:data_next_bin_generation, contains("non")) |>
+      dplyr::select(datetime_8760_col:data_next_bin_generation, dplyr::contains("non")) |>
       # Rename so that we can easily bind rows below
-      rename_with(~ str_replace(., "_non", ""))
+      dplyr::rename_with(~ stringr::str_replace(., "_non", ""))
 
     # Bind rows, re-order by time
-    assigned_data_ozoned <- bind_rows(oz, non) |>
-      arrange(datetime_8760_col)
+    assigned_data_ozoned <- dplyr::bind_rows(oz, non) |>
+      dplyr::arrange(datetime_8760_col)
 
     return(assigned_data_ozoned)
   }
 
   assigned_data_regions_bau <- assigned_data_regions_bau |>
-    map(ozone_split)
+    purrr::map(ozone_split)
 
 
   ## Interpolate =============
@@ -363,21 +363,21 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   linearly interpolate between the two load bins.
 
   interpolate <- function(assigned_data) {
-    ff_load_bin_8760_bau <- pull(assigned_data, ff_load_bin_8760_col)
+    ff_load_bin_8760_bau <- dplyr::pull(assigned_data, ff_load_bin_8760_col)
 
-    ff_load_bin_8760_next_bau <- pull(assigned_data, ff_load_bin_next_col)
+    ff_load_bin_8760_next_bau <- dplyr::pull(assigned_data, ff_load_bin_next_col)
 
-    load_8760_bau <- pull(assigned_data, load_8760_col)
+    load_8760_bau <- dplyr::pull(assigned_data, load_8760_col)
 
-    metadata <- select(assigned_data, datetime_8760_col:full_unit_name)
+    metadata <- dplyr::select(assigned_data, datetime_8760_col:full_unit_name)
 
     # Select all the load bin data
     current_data <- assigned_data |>
-      select(contains("data") & !contains("next"))
+      dplyr::select(dplyr::contains("data") & !dplyr::contains("next"))
 
     # Select all the load bin data for the next load bin
     next_data <- assigned_data |>
-      select(contains("data") & contains("next"))
+      dplyr::select(dplyr::contains("data") & dplyr::contains("next"))
 
     # Do the interpolation. "cd" and "nd" for "current data" and "next data."
     interpolate_inner <- function(cd, nd) {
@@ -390,16 +390,16 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
     # modify2 used because it returns a tibble. interpolate_inner is a
     #   vectorized function and we apply it pairwise to each column of the
     #   current_data and next_data tables.
-    interped_inner <- modify2(current_data, next_data, interpolate_inner)
+    interped_inner <- purrr::modify2(current_data, next_data, interpolate_inner)
 
     # Add back the "metadata"
-    interped_inner <- bind_cols(metadata, interped_inner)
+    interped_inner <- dplyr::bind_cols(metadata, interped_inner)
 
     return(interped_inner)
   }
 
-  bau_case_ap <- map(assigned_data_regions_bau, interpolate) |>
-    set_names(rdf_name_vector)
+  bau_case_ap <- purrr::map(assigned_data_regions_bau, interpolate) |>
+    purrr::set_names(rdf_name_vector)
 
   # To save some memory
   rm(assigned_data_regions_bau)
@@ -407,11 +407,11 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
 
 
   # COMBINE AND RETURN ############
-  avertr_rdfs <- map2(load_bin_data_ap, bau_case_ap, ~ lst(.x, .y)) |>
-    imap(
-      ~ set_names(
+  avertr_rdfs <- purrr::map2(load_bin_data_ap, bau_case_ap, ~ dplyr::lst(.x, .y)) |>
+    purrr::imap(
+      ~ purrr::set_names(
         .x,
-        c(str_c("load_bin_data_ap_", .y), str_c("bau_case_ap_", .y))
+        c(stringr::str_c("load_bin_data_ap_", .y), stringr::str_c("bau_case_ap_", .y))
       )
     )
 
