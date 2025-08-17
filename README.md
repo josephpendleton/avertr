@@ -7,7 +7,27 @@
 
 <!-- badges: end -->
 
-The goal of avertr is to …
+AVERT is an EPA tool which
+
+avertr is very much still under development. It is also the first R
+package I’ve developed and the biggest software project I’ve undertaken.
+All of that is to say: set your expectations low and you’ll be
+pleasantly surprised. I’m working on making it more user-friendly.
+
+Why use avertr?
+
+- It’s easy to integrate into R code.
+
+- It’s faster than AVERT’s Main Module and (seemingly, often) faster
+  than the Web Version.
+
+- It’s more easily modifiable.
+
+- Working with avertr can help you get a better understanding of how
+  AVERT works (especially if you’re more familiar with R than VBA).
+
+**NOTE**: avertr is based on EPA’s AVERT, but it is completely
+independent. I do not work for the EPA.
 
 ## Installation
 
@@ -18,6 +38,15 @@ You can install the development version of avertr from
 # install.packages("pak")
 pak::pak("josephpendleton/avertr")
 ```
+
+## Requirements
+
+Files are big. You need 16 GB. Haven’t yet tested on Windows.
+
+## Set Up
+
+The current version of avertr requires some manual setup by the user.
+Hop
 
 ## Example
 
