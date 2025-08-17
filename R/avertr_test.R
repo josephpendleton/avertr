@@ -6,6 +6,15 @@
 #   avert_run_filepath is the string of a filepath to an AVERT main module where
 #   a scenario has been run, *saved as a .xlsx file*.
 
+#' Title
+#'
+#' @param avertr_results
+#' @param avert_run_filepath
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 test_annual <- function(avertr_results, avert_run_filepath) {
   # Load elements of avertr_results list to environment
   list2env(avertr_results, envir = environment())
@@ -183,6 +192,15 @@ test_annual <- function(avertr_results, avert_run_filepath) {
 
 
 
+#' Title
+#'
+#' @param avertr_results
+#' @param avert_run_filepath
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 test_hourly <- function(avertr_results, avert_run_filepath) {
   # Load elements of avertr_results list to environment
   list2env(avertr_results, envir = environment())

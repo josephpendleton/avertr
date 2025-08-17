@@ -14,6 +14,16 @@
 #   containing all 14 AVERT RDFs for 2023. This script is NOT yet robust to
 #   leap years. Takes ~5 mins to run on my machine.
 
+#' Title
+#'
+#' @param rdf_directory_filepath
+#' @param rdf_name_vector
+#' @param rdfs_year
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   # DEFINE/LOAD OBJECTS ############
   # Vector of each hour of the year 2023

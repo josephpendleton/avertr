@@ -34,6 +34,18 @@
 #   year. You can check this to ensure that you aren't requesting too much of a
 #   load change from avertr.
 
+#' Title
+#'
+#' @param hourly_load_reduction
+#' @param avert_main_module_filepath
+#' @param avertr_rdf_filepath
+#' @param project_year
+#' @param project_region
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 avert <- function(hourly_load_reduction, avert_main_module_filepath,
                   avertr_rdf_filepath = NULL, project_year, project_region) {
 
@@ -531,6 +543,26 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 #   Rooftop PV and distributed storage, losses used as of AVERT v4.3 are
 #   hard-coded. If all you want to do is adjust an 8760 representing an onsite
 #   energy program to also account for T&D losses then use adjust_reduction().
+
+#' Title
+#'
+#' @param project_year
+#' @param project_region
+#' @param avert_main_module_filepath
+#' @param avertr_rdf_filepath
+#' @param apply_reduction_top_x_pct_hours
+#' @param reduce_x_pct_in_top_hours
+#' @param reduce_annual_generation_by_x_gwh
+#' @param reduce_each_hour_by_x_mw
+#' @param onshore_wind_capacity_mw
+#' @param offshore_wind_capacity_mw
+#' @param utility_solar_pv_capacity_mw
+#' @param rooftop_solar_pv_capacity_mw
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 generate_reduction <- function(
   project_year,
   project_region,
@@ -727,6 +759,17 @@ generate_reduction <- function(
 #   what this function does. Losses from AVERT v4.3 are hard-coded in. Note that
 #   rooftop PV and distributed storage are already adjusted up for T&D losses in
 #   generate_reduction().
+
+#' Title
+#'
+#' @param unadjusted_hourly_load_reduction
+#' @param project_year
+#' @param project_region
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 adjust_reduction <- function(
   unadjusted_hourly_load_reduction = NULL,
   project_year = NULL,
