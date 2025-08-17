@@ -10,3 +10,4 @@
 ^temporary_solar_storage\.R$
 ^avertr_leap_year_issue_investigate\.R$
 ^avertr_run_tests\.R$
+^avertr_rdf_prepare_standard_runs\.R$
