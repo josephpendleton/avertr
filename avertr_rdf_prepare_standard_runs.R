@@ -50,7 +50,7 @@ prepare_save_rm_rdfs <- function(rdf_name_vector, rdfs_year) {
     rdfs_out,
     ~ readr::write_rds(
       .x,
-      file.path(".", "avertr_rdfs", paste0("avertr_rdf_", .y, "_2023", ".rds"))
+      file.path(".", "avertr_rdfs", rdfs_year, paste0("avertr_rdf_", .y, "_", rdfs_year, ".rds"))
     )
   )
 
@@ -61,6 +61,5 @@ prepare_save_rm_rdfs <- function(rdf_name_vector, rdfs_year) {
 
 avertr_rdf_inputs |>
   purrr::pwalk(prepare_save_rm_rdfs)
-
 
 
