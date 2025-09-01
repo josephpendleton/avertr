@@ -1,31 +1,66 @@
-# A script to generate the "standard" avertr RDFs. These are just the standard
-#   AVERT RDFs, prepared for use with avertr, and named in a special way so that
-#   you can easily run an avertr scenario without having to specify a new
-#   filepath each time (see header to avertr.R for more information.) As such,
-#   the naming of these files is significant, since avertr.R uses it to
-#   determine which avertr RDF to read in.
-# Currently only running for 2023.
+# A script to generate the "standard" avertr RDFs using prepare_rdfs()
+# Runs 2018 through 2023
+# Assumes you're running from a working directory which contains a directory
+#   named regional_data_files, that regional_data_files contains 7 folders named
+#   2017, 2018, . . ., 2023, and that each of those 7 folders contains all 14
+#   AVERT regional data files for the corresponding year.
 
+library(avertr)
 
+# Create the top-level directory for storing the rdfs, if it doesn't exist
+if (!dir.exists(file.path(".", "avertr_rdfs"))) {
+  dir.create(file.path(".", "avertr_rdfs"))
+}
 
-source(file.path(".", "avertr_rdf_prepare.R"))
+# Create all the directories for storing each year's avertr rdfs, if they don't
+#   already exist
+for (i in 2017:2023) {
+  if (!dir.exists(file.path(".", "avertr_rdfs", i))) {
+    dir.create(file.path(".", "avertr_rdfs", i))
+  }
+}
 
-# 2023 ############
+years <- 2017:2023
+
 region_names <- c("California", "Carolinas", "Central", "Florida", "Mid-Atlantic",
                   "Midwest", "New England", "New York", "Northwest", "Rocky Mountains",
                   "Southeast", "Southwest", "Tennessee", "Texas")
 
-# This directory contains all and only the 14 RDFs from version 4.3 of AVERT
-arp_out <- prepare_rdfs(
-  file.path(".", "regional_data_files"),
-  region_names,
-  2023
+# Make a tibble for all the scenarios. The names need to match with the
+#   arguments of prepare_save_rm_rdfs below (whose arguments in turn I've
+#   made to match with the arguments from prepare_rdfs()).
+avertr_rdf_inputs <- tibble::tibble(
+  rdf_name_vector = replicate(length(years), region_names, simplify = FALSE),
+  rdfs_year = years,
 )
 
-purrr::iwalk(
-  arp_out,
-  ~ readr::write_rds(
-    .x,
-    file.path(".", "avertr_rdfs", paste0("avertr_rdf_", .y, "_2023", ".rds"))
+# A function to run prepare_rdfs(), save the results, and then remove the list.
+#   Necessary because we'd run out of memory otherwise.
+prepare_save_rm_rdfs <- function(rdf_name_vector, rdfs_year) {
+
+  # Run prepare_rdfs()
+  rdfs_out <- prepare_rdfs(
+    file.path(".", "regional_data_files", rdfs_year),
+    rdf_name_vector,
+    rdfs_year
   )
-)
+
+  # Save the outputs to the appropriate directory
+  purrr::iwalk(
+    rdfs_out,
+    ~ readr::write_rds(
+      .x,
+      file.path(".", "avertr_rdfs", paste0("avertr_rdf_", .y, "_2023", ".rds"))
+    )
+  )
+
+  # Remove the list of avertr rdfs
+  rm(rdfs_out)
+
+}
+
+avertr_rdf_inputs |>
+  purrr::pwalk(prepare_save_rm_rdfs)
+
+
+
