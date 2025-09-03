@@ -69,7 +69,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
   # Vector of each hour of the year 2023
   datetime_8760 <- seq(
-    from = lubridate::ymd_hms(paste0(rdfs_year, "-01-01 00:00:00")),
+    from = lubridate::ymd_hms(paste0(project_year, "-01-01 00:00:00")),
     by = "1 hour",
     length.out = 8760
   )
@@ -222,8 +222,8 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
       dplyr::filter(
         dplyr::between(
           datetime_8760_col,
-          lubridate::ymd_hms(paste0(rdfs_year, "-05-01 00:00:00")),
-          lubridate::ymd_hms(paste0(rdfs_year, "-09-30 00:00:00"))
+          lubridate::ymd_hms(paste0(project_year, "-05-01 00:00:00")),
+          lubridate::ymd_hms(paste0(project_year, "-09-30 00:00:00"))
         )
       )
 
@@ -592,7 +592,7 @@ generate_reduction <- function(
 
   # Vector of each hour of the year 2023
   datetime_8760 <- seq(
-    from = lubridate::ymd_hms(paste0(rdfs_year, "-01-01 00:00:00")),
+    from = lubridate::ymd_hms(paste0(project_year, "-01-01 00:00:00")),
     by = "1 hour",
     length.out = 8760
   )
