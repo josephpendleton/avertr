@@ -232,6 +232,38 @@ multiple_midwest_annual <- test_annual(
 
 
 
+# 6000 MW OSW NY 2018 #############
+## Run avertr Scenario ===========
+osw_6000_ny_2018 <- generate_reduction(
+  offshore_wind_capacity_mw = 6000,
+  project_region = "New York",
+  project_year = "2018",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2018/avertr_rdf_New York_2018.rds"
+) |>
+  avert(
+    project_region = "New York",
+    project_year = "2018",
+    avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/2018/avertr_rdf_New York_2018.rds"
+  )
+
+
+## Test =============
+### annual -----------
+osw_6000_ny_2018_test_annual <- test_annual(
+  avertr_results = osw_6000_ny_2018,
+  avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_2018_09012025.xlsx"
+)
+
+## hourly -----------
+osw_6000_ny_2018_test_hourly <- test_hourly(
+  avertr_results = osw_6000_ny_2018,
+  avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_2018_09012025.xlsx"
+)
+
+
+
 # SCEN NAME #############
 ## Run avertr Scenario ===========
 

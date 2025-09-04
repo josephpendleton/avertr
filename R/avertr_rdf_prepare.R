@@ -334,7 +334,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
         dplyr::between(
           datetime_8760_col,
           lubridate::ymd_hms(paste0(rdfs_year, "-05-01 00:00:00")),
-          lubridate::ymd_hms(paste0(rdfs_year, "-09-30 00:00:00"))
+          lubridate::ymd_hms(paste0(rdfs_year, "-09-30 23:00:00"))
         )
       )
 

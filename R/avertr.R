@@ -223,7 +223,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
         dplyr::between(
           datetime_8760_col,
           lubridate::ymd_hms(paste0(project_year, "-05-01 00:00:00")),
-          lubridate::ymd_hms(paste0(project_year, "-09-30 00:00:00"))
+          lubridate::ymd_hms(paste0(project_year, "-09-30 23:00:00"))
         )
       )
 

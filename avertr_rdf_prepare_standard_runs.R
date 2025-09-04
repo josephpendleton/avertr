@@ -31,7 +31,7 @@ region_names <- c("California", "Carolinas", "Central", "Florida", "Mid-Atlantic
 #   made to match with the arguments from prepare_rdfs()).
 avertr_rdf_inputs <- tibble::tibble(
   rdf_name_vector = replicate(length(years), region_names, simplify = FALSE),
-  rdfs_year = years,
+  rdfs_year = years
 )
 
 # A function to run prepare_rdfs(), save the results, and then remove the list.
