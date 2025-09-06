@@ -2,8 +2,7 @@
 #   match with their analogous AVERT scenarios. Mostly for internal use, cheking
 #   the tool, etc.
 
-source("./avertr.R")
-source("./avertr_test.R")
+library(avertr)
 
 
 
@@ -12,15 +11,15 @@ source("./avertr_test.R")
 osw_6000_ny <- generate_reduction(
   offshore_wind_capacity_mw = 6000,
   project_region = "New York",
-  project_year = "2023",
+  project_year = 2023,
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New York_2023.rds"
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_New York_2023.rds"
 ) |>
   avert(
     project_region = "New York",
-    project_year = "2023",
+    project_year = 2023,
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New York_2023.rds"
+    avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_New York_2023.rds"
   )
 
 
@@ -107,13 +106,13 @@ rooftoppv_20_texas <- generate_reduction(
   project_region = "Texas",
   project_year = "2023",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Texas_2023.rds"
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Texas_2023.rds"
 ) |>
   avert(
     project_region = "Texas",
     project_year = "2023",
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Texas_2023.rds"
+    avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Texas_2023.rds"
   )
 
 ## Test =============
@@ -262,6 +261,36 @@ osw_6000_ny_2018_test_hourly <- test_hourly(
   avert_run_filepath = "./test_scenarios/6000MW_OSW_NY_2018_09012025.xlsx"
 )
 
+
+
+# 257 MW ONSHORE WIND NORTHWEST 2020 #############
+## Run avertr Scenario ===========
+onshore_257_mw_2020 <- generate_reduction(
+  onshore_wind_capacity_mw = 257,
+  project_region = "Northwest",
+  project_year = 2020,
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2020/avertr_rdf_Northwest_2020.rds"
+) |>
+  avert(
+    project_region = "Northwest",
+    project_year = 2020,
+    avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/2020/avertr_rdf_Northwest_2020.rds"
+  )
+
+## Test =============
+### annual -----------
+onshore_257_mw_2020_test_annual <- test_annual(
+  avertr_results = onshore_257_mw_2020,
+  avert_run_filepath = "./test_scenarios/257MW_Onshore_NW_2020_09062025.xlsx"
+)
+
+### hourly -----------
+onshore_257_mw_2020_test_hourly <- test_hourly(
+  avertr_results = onshore_257_mw_2020,
+  avert_run_filepath = "./test_scenarios/257MW_Onshore_NW_2020_09062025.xlsx"
+)
 
 
 # SCEN NAME #############

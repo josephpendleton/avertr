@@ -50,6 +50,15 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
                   avertr_rdf_filepath = NULL, project_year, project_region) {
 
   # DEFINE/LOAD OBJECTS ######
+  browser()
+  # If it's a leap year, set the number of hours in the year to 8784, else 8760.
+  # (Note that "8760" is used in variable names throughout the code, but refers
+  #   to either 8760 or 8784.)
+  if (lubridate::leap_year(project_year)) {
+    yr_hrs <- 8760 + 24
+  } else {
+    yr_hrs <- 8760
+  }
 
   # If no avertr rdf filepath entered, assumes it's one of the standard runs and
   #   fills in filepath based on region and year.
@@ -71,7 +80,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   datetime_8760 <- seq(
     from = lubridate::ymd_hms(paste0(project_year, "-01-01 00:00:00")),
     by = "1 hour",
-    length.out = 8760
+    length.out = yr_hrs
   )
 
   # This is the BAU load
@@ -111,12 +120,19 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
         row <= 8786
       )
 
-    capacity_factor_8760 <- cfs |>
-      # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
-      #   and removes 12/31. It should be filter(!(row %in% 1419:1442)). But
-      #   this is the filter AVERT uses.
-      dplyr::filter(row %in% 3:8762) |>
-      dplyr::pull(numeric)
+    if (lubridate::leap_year(project_year)) {
+      capacity_factor_8760 <- cfs |>
+        dplyr::filter(row %in% 3:8786) |>
+        dplyr::pull(numeric)
+    } else {
+      capacity_factor_8760 <- cfs |>
+        # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
+        #   and removes 12/31. It should be filter(!(row %in% 1419:1442)). But
+        #   this is the filter AVERT uses.
+        dplyr::filter(row %in% 3:8762) |>
+        dplyr::pull(numeric)
+    }
+
 
     # This is the hourly load reduction
     hourly_load_reduction <- capacity_factor_8760 * project_capacity
@@ -137,7 +153,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
   # NA vector for now, but will store the load bin associated with each hourly
   #  load value from load_8760s_bau
-  ff_load_bin_8760 <- rep(NA, 8760)
+  ff_load_bin_8760 <- rep(NA, yr_hrs)
 
   # This function binnifies the vector. Specifically, for each raw hourly load
   #   within load_8760s_bau, it finds the closest load bin which is less than or
@@ -146,7 +162,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   #   do the interpolation below.
   binnify <- function(load_8760, ff_load_bin_key) {
     # For each hour of the year
-    for (i in 1:8760) {
+    for (i in 1:yr_hrs) {
 
       # A bit of a hack, but if the load is higher than or equal to the highest
       #   ff load bin, simply assign it the highest load bin. If it's lower than
@@ -580,8 +596,17 @@ generate_reduction <- function(
   utility_solar_pv_capacity_mw = 0,
   rooftop_solar_pv_capacity_mw = 0
 ) {
-
+  browser()
   # DEFINE/LOAD OBJECTS ######
+  # If it's a leap year, set the number of hours in the year to 8784, else 8760.
+  # (Note that "8760" is used in variable names throughout the code, but refers
+  #   to either 8760 or 8784.)
+  if (lubridate::leap_year(project_year)) {
+    yr_hrs <- 8760 + 24
+  } else {
+    yr_hrs <- 8760
+  }
+
   # Scale down the two percents entered by users, since they're assumed to be
   #   1-100, but are more practically used here are fractions from 0 to 1.
   apply_reduction_top_x_pct_hours <- apply_reduction_top_x_pct_hours / 100
@@ -594,7 +619,7 @@ generate_reduction <- function(
   datetime_8760 <- seq(
     from = lubridate::ymd_hms(paste0(project_year, "-01-01 00:00:00")),
     by = "1 hour",
-    length.out = 8760
+    length.out = yr_hrs
   )
 
   # This is the BAU load
@@ -602,7 +627,7 @@ generate_reduction <- function(
     dplyr::distinct(datetime_8760_col, load_8760_col) |>
     dplyr::pull(load_8760_col)
 
-  hourly_load_reduction <- rep(0, 8760)
+  hourly_load_reduction <- rep(0, yr_hrs)
 
   # This is the T&D losses for the region
   t_and_d_loss_factor <- t_and_d_losses |>
@@ -619,7 +644,7 @@ generate_reduction <- function(
   if (apply_reduction_top_x_pct_hours != 0 & reduce_x_pct_in_top_hours != 0) {
     # The number of hours to apply the reduction in
     # NOTE: fix rounding to be consistent w excel rounding??
-    number_of_top_hours <- round(8760 * apply_reduction_top_x_pct_hours)
+    number_of_top_hours <- round(yr_hrs * apply_reduction_top_x_pct_hours)
 
     # The indices where the top hours are located
     top_hour_indices <- bau_load_8760 |>
@@ -652,7 +677,7 @@ generate_reduction <- function(
     #   efficiency measures, where the reductions occur on-site. Thus, like
     #   AVERT, we by default adjust for T&D losses.
     hourly_load_reduction <- hourly_load_reduction + adjust_reduction(
-      (reduce_annual_generation_by_x_mwh / 8760),
+      (reduce_annual_generation_by_x_mwh / yr_hrs),
       project_year = project_year,
       project_region = project_region
     )
@@ -703,7 +728,7 @@ generate_reduction <- function(
       # NOTE!!! Pretty sure this is the wrong filter, since it leaves in Feb. 29
       #   and removes 12/31. It should be filter(!(row %in% 1419:1442)). But
       #   this is the filter AVERT uses.
-      dplyr::slice(1:8760) |>
+      dplyr::slice(1:yr_hrs) |>
       # Re-arrange columns to do the matrix multiplication below,  keeping the
       #   four technologies in the same order as a user would input capacities for
       #   them

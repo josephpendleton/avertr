@@ -25,12 +25,23 @@
 #'
 #' @examples
 prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
+
   # DEFINE/LOAD OBJECTS ############
+
+  # If it's a leap year, set the number of hours in the year to 8784, else 8760.
+  # (Note that "8760" is used in variable names throughout the code, but refers
+  #   to either 8760 or 8784.)
+  if (lubridate::leap_year(rdfs_year)) {
+    yr_hrs <- 8760 + 24
+  } else {
+    yr_hrs <- 8760
+  }
+
   # Vector of each hour of the year
   datetime_8760 <- seq(
     from = lubridate::ymd_hms(paste0(rdfs_year, "-01-01 00:00:00")),
     by = "1 hour",
-    length.out = 8760
+    length.out = yr_hrs
   )
 
   # Filepaths to the AVERT regional data files being transformed into avertr rdfs
@@ -259,7 +270,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   ## Binnify ==============
   # NA vector for now, but will store the load bin associated with each hourly
   #   load value from load_8760s_bau
-  ff_load_bin_8760_bau <- rep(NA, 8760)
+  ff_load_bin_8760_bau <- rep(NA, yr_hrs)
 
   # This function binnifies each vector. Specifically, for each raw hourly load
   #   within load_8760s_bau, it finds the closest load bin which is less than or
@@ -268,7 +279,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   #   do the interpolation below.
   binnify <- function(load_8760, ff_load_bin_key) {
     # For each hour of the year
-    for (i in 1:8760) {
+    for (i in 1:yr_hrs) {
 
       # Gives a vector containing the difference between raw load and each load
       #   bin within the region
