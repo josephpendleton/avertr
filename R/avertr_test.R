@@ -233,6 +233,18 @@ test_hourly <- function(avertr_results, avert_run_filepath) {
     ) |>
     suppressMessages()
 
+  # Get the value from cell B4, which should be the year
+  project_year <- avert_hourly_data[[1]] |>
+    dplyr::slice(4) |>
+    dplyr::pull(...2) |>
+    as.numeric()
+
+  if (lubridate::leap_year(project_year)) {
+    yr_hrs <- 8760 + 24
+  } else {
+    yr_hrs <- 8760
+  }
+
   # The unit name, ORISPL code, and unit ID are split up across three header
   #   rows.
   avert_differences_final_hourly_headers <- avert_hourly_data |>
@@ -247,7 +259,7 @@ test_hourly <- function(avertr_results, avert_run_filepath) {
   # Clean the actual EGU data
   avert_differences_final_hourly <- avert_hourly_data |>
     # Grab the appropriate rows for the EGU data
-    purrr::map(~ dplyr::slice(.x, 4:8763)) |>
+    purrr::map(~ dplyr::slice(.x, 4:(yr_hrs + 3))) |>
     # Select columns 8 and 12+, like above
     purrr::map(~ dplyr::select(.x, !(...1:...7) & !(...9:...11))) |>
     # Change timestamp to datetime. Some of the values are slightly off the

@@ -50,7 +50,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
                   avertr_rdf_filepath = NULL, project_year, project_region) {
 
   # DEFINE/LOAD OBJECTS ######
-  browser()
+
   # If it's a leap year, set the number of hours in the year to 8784, else 8760.
   # (Note that "8760" is used in variable names throughout the code, but refers
   #   to either 8760 or 8784.)
@@ -596,7 +596,7 @@ generate_reduction <- function(
   utility_solar_pv_capacity_mw = 0,
   rooftop_solar_pv_capacity_mw = 0
 ) {
-  browser()
+
   # DEFINE/LOAD OBJECTS ######
   # If it's a leap year, set the number of hours in the year to 8784, else 8760.
   # (Note that "8760" is used in variable names throughout the code, but refers

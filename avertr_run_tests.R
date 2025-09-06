@@ -204,15 +204,15 @@ multiple_midwest <- generate_reduction(
   reduce_x_pct_in_top_hours = 5.7,
   utility_solar_pv_capacity_mw = 200,
   project_region = "Midwest",
-  project_year = "2023",
+  project_year = 2023,
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Midwest_2023.rds"
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Midwest_2023.rds"
 ) |>
   avert(
     project_region = "Midwest",
-    project_year = "2023",
+    project_year = 2023,
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Midwest_2023.rds"
+    avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Midwest_2023.rds"
   )
 
 
@@ -224,10 +224,10 @@ multiple_midwest_annual <- test_annual(
 )
 
 ### hourly -----------
-# multiple_midwest_hourly <- test_hourly(
-#   multiple_midwest,
-#   avert_run_filepath = "./test_scenarios/multiple_MW_08162025.xlsx"
-# )
+multiple_midwest_hourly <- test_hourly(
+  multiple_midwest,
+  avert_run_filepath = "./test_scenarios/multiple_MW_08162025.xlsx"
+)
 
 
 
@@ -291,6 +291,7 @@ onshore_257_mw_2020_test_hourly <- test_hourly(
   avertr_results = onshore_257_mw_2020,
   avert_run_filepath = "./test_scenarios/257MW_Onshore_NW_2020_09062025.xlsx"
 )
+
 
 
 # SCEN NAME #############
