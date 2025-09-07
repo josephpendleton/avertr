@@ -545,6 +545,21 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
 
 
 
+  # REDUCE SIZE ##########
+  # Recast to reduce size
+  differences_final <- differences_final |>
+    dplyr::mutate(
+    load_8760_col = as.integer(load_8760_col),
+    ff_load_bin_8760_col = as.integer(ff_load_bin_8760_col),
+    ff_load_bin_next_col = as.integer(ff_load_bin_next_col),
+    state = forcats::as_factor(state),
+    county = forcats::as_factor(county),
+    fuel_type = forcats::as_factor(fuel_type),
+    orispl_code = as.integer(orispl_code)
+  )
+
+
+
   # COMBINE AND RETURN ############
   avertr_results <- dplyr::lst(
     differences_final,

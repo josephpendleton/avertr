@@ -72,15 +72,15 @@ flat_500_ca_test_annual <- test_annual(
 utilitypv_900_rocky <- generate_reduction(
   utility_solar_pv_capacity_mw = 900,
   project_region = "Rocky Mountains",
-  project_year = "2023",
+  project_year = 2023,
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Rocky Mountains_2023.rds"
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Rocky Mountains_2023.rds"
 ) |>
   avert(
     project_region = "Rocky Mountains",
-    project_year = "2023",
+    project_year = 2023,
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Rocky Mountains_2023.rds"
+    avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Rocky Mountains_2023.rds"
   )
 
 
@@ -265,7 +265,7 @@ osw_6000_ny_2018_test_hourly <- test_hourly(
 
 # 257 MW ONSHORE WIND NORTHWEST 2020 #############
 ## Run avertr Scenario ===========
-onshore_257_mw_2020 <- generate_reduction(
+onshore_257_nw_2020 <- generate_reduction(
   onshore_wind_capacity_mw = 257,
   project_region = "Northwest",
   project_year = 2020,
@@ -281,13 +281,13 @@ onshore_257_mw_2020 <- generate_reduction(
 
 ## Test =============
 ### annual -----------
-onshore_257_mw_2020_test_annual <- test_annual(
+onshore_257_nw_2020_test_annual <- test_annual(
   avertr_results = onshore_257_mw_2020,
   avert_run_filepath = "./test_scenarios/257MW_Onshore_NW_2020_09062025.xlsx"
 )
 
 ### hourly -----------
-onshore_257_mw_2020_test_hourly <- test_hourly(
+onshore_257_nw_2020_test_hourly <- test_hourly(
   avertr_results = onshore_257_mw_2020,
   avert_run_filepath = "./test_scenarios/257MW_Onshore_NW_2020_09062025.xlsx"
 )
