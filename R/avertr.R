@@ -47,7 +47,7 @@
 #'
 #' @examples
 avert <- function(hourly_load_reduction, avert_main_module_filepath,
-                  avertr_rdf_filepath = NULL, project_year, project_region) {
+                  avertr_rdf_filepath, project_year, project_region) {
 
   # DEFINE/LOAD OBJECTS ######
 
@@ -58,16 +58,6 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
     yr_hrs <- 8760 + 24
   } else {
     yr_hrs <- 8760
-  }
-
-  # If no avertr rdf filepath entered, assumes it's one of the standard runs and
-  #   fills in filepath based on region and year.
-  if (is.null(avertr_rdf_filepath)) {
-    avertr_rdf_filepath <- file.path(
-      ".",
-      "avertr_rdfs",
-      paste0("avertr_rdf_", project_region, "_", project_year, ".rds")
-    )
   }
 
   load_bin_data_ap_region <- readr::read_rds(avertr_rdf_filepath) |>
@@ -557,6 +547,22 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
     fuel_type = forcats::as_factor(fuel_type),
     orispl_code = as.integer(orispl_code)
   )
+
+
+
+  # ADD UNITS ##########
+  # Add units to variable names
+  differences_final <- differences_final |>
+    dplyr::rename(
+      data_generation_mwh = data_generation,
+      data_so2_lbs = data_so2,
+      data_nox_lbs = data_nox,
+      data_co2_short_tons = data_co2,
+      data_heat_mmbtu = data_heat,
+      data_pm25_lbs = data_pm25,
+      data_voc_lbs = data_voc,
+      data_nh3_lbs = data_nh3
+    )
 
 
 

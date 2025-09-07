@@ -48,7 +48,7 @@ test_annual <- function(avertr_results, avert_run_filepath) {
   differences_final_egu <- differences_final |>
     dplyr::select(!c(load_8760_col:fuel_type)) |>
     dplyr::summarize(
-      dplyr::across(data_generation:data_nh3, sum),
+      dplyr::across(data_generation_mwh:data_nh3_lbs, sum),
       .by = c(orispl_code, unit_code, full_unit_name)
     )
 
@@ -79,21 +79,21 @@ test_annual <- function(avertr_results, avert_run_filepath) {
   # Calculate total and percent errors between avertr and AVERT data
   test_errors_egu <- test_joined_egu |>
     dplyr::mutate(
-      generation_error = data_generation - `Annual Change in Generation (MWh)`,
+      generation_error = data_generation_mwh - `Annual Change in Generation (MWh)`,
       pct_generation_error = (generation_error / `Annual Change in Generation (MWh)`) * 100,
-      so2_error = data_so2 - `Annual Change in SO2 (lb)`,
+      so2_error = data_so2_lbs - `Annual Change in SO2 (lb)`,
       pct_so2_error = (so2_error / `Annual Change in SO2 (lb)`) * 100,
-      nox_error = data_nox - `Annual Change in NOx (lb)`,
+      nox_error = data_nox_lbs - `Annual Change in NOx (lb)`,
       pct_nox_error = (nox_error / `Annual Change in NOx (lb)`) * 100,
-      co2_error = data_co2 - `Annual Change in CO2 (tons)`,
+      co2_error = data_co2_short_tons - `Annual Change in CO2 (tons)`,
       pct_co2_error = (co2_error / `Annual Change in CO2 (tons)`) * 100,
-      heat_error = data_heat - `Annual Change in Heat Input (MMBtu)`,
+      heat_error = data_heat_mmbtu - `Annual Change in Heat Input (MMBtu)`,
       pct_heat_error = (heat_error / `Annual Change in Heat Input (MMBtu)`) * 100,
-      pm25_error = data_pm25 - `Annual Change in PM2.5 (lb)`,
+      pm25_error = data_pm25_lbs - `Annual Change in PM2.5 (lb)`,
       pct_pm25_error = (pm25_error / `Annual Change in PM2.5 (lb)`) * 100,
-      voc_error = data_voc - `Annual Change in VOCs (lb)`,
+      voc_error = data_voc_lbs - `Annual Change in VOCs (lb)`,
       pct_voc_error = (voc_error / `Annual Change in VOCs (lb)`) * 100,
-      nh3_error = data_nh3 - `Annual Change in NH3 (lb)`,
+      nh3_error = data_nh3_lbs - `Annual Change in NH3 (lb)`,
       pct_nh3_error = (nh3_error / `Annual Change in NH3 (lb)`) * 100
     )
 
@@ -126,7 +126,7 @@ test_annual <- function(avertr_results, avert_run_filepath) {
       dplyr::across(
         c(
           `Annual Change in CO2 (tons)`:`Annual Change in VOCs (lb)`,
-          data_generation:data_nh3
+          data_generation_mwh:data_nh3_lbs
         ),
         sum
       )
@@ -135,21 +135,21 @@ test_annual <- function(avertr_results, avert_run_filepath) {
   ### calculate errors --------
   test_errors_region <- test_errors_region |>
     dplyr::mutate(
-      generation_error = data_generation - `Annual Change in Generation (MWh)`,
+      generation_error = data_generation_mwh - `Annual Change in Generation (MWh)`,
       pct_generation_error = (generation_error / `Annual Change in Generation (MWh)`) * 100,
-      so2_error = data_so2 - `Annual Change in SO2 (lb)`,
+      so2_error = data_so2_lbs - `Annual Change in SO2 (lb)`,
       pct_so2_error = (so2_error / `Annual Change in SO2 (lb)`) * 100,
-      nox_error = data_nox - `Annual Change in NOx (lb)`,
+      nox_error = data_nox_lbs - `Annual Change in NOx (lb)`,
       pct_nox_error = (nox_error / `Annual Change in NOx (lb)`) * 100,
-      co2_error = data_co2 - `Annual Change in CO2 (tons)`,
+      co2_error = data_co2_short_tons - `Annual Change in CO2 (tons)`,
       pct_co2_error = (co2_error / `Annual Change in CO2 (tons)`) * 100,
-      heat_error = data_heat - `Annual Change in Heat Input (MMBtu)`,
+      heat_error = data_heat_mmbtu - `Annual Change in Heat Input (MMBtu)`,
       pct_heat_error = (heat_error / `Annual Change in Heat Input (MMBtu)`) * 100,
-      pm25_error = data_pm25 - `Annual Change in PM2.5 (lb)`,
+      pm25_error = data_pm25_lbs - `Annual Change in PM2.5 (lb)`,
       pct_pm25_error = (pm25_error / `Annual Change in PM2.5 (lb)`) * 100,
-      voc_error = data_voc - `Annual Change in VOCs (lb)`,
+      voc_error = data_voc_lbs - `Annual Change in VOCs (lb)`,
       pct_voc_error = (voc_error / `Annual Change in VOCs (lb)`) * 100,
-      nh3_error = data_nh3 - `Annual Change in NH3 (lb)`,
+      nh3_error = data_nh3_lbs - `Annual Change in NH3 (lb)`,
       pct_nh3_error = (nh3_error / `Annual Change in NH3 (lb)`) * 100
     )
 
@@ -339,21 +339,21 @@ test_hourly <- function(avertr_results, avert_run_filepath) {
   ## Calculate Errors ==========
   test_errors_hourly <- test_joined_hourly |>
     dplyr::mutate(
-      generation_error = data_generation - Generation,
+      generation_error = data_generation_mwh - Generation,
       pct_generation_error = (generation_error / Generation) * 100,
-      so2_error = data_so2 - SO2,
+      so2_error = data_so2_lbs - SO2,
       pct_so2_error = (so2_error / SO2) * 100,
-      nox_error = data_nox - NOx,
+      nox_error = data_nox_lbs - NOx,
       pct_nox_error = (nox_error / NOx) * 100,
-      co2_error = data_co2 - CO2,
+      co2_error = data_co2_short_tons - CO2,
       pct_co2_error = (co2_error / CO2) * 100,
-      heat_error = data_heat - HeatInput,
+      heat_error = data_heat_mmbtu - HeatInput,
       pct_heat_error = (heat_error / HeatInput) * 100,
-      pm25_error = data_pm25 - PM25,
+      pm25_error = data_pm25_lbs - PM25,
       pct_pm25_error = (pm25_error / PM25) * 100,
-      voc_error = data_voc - VOCs,
+      voc_error = data_voc_lbs - VOCs,
       pct_voc_error = (voc_error / VOCs) * 100,
-      nh3_error = data_nh3 - NH3,
+      nh3_error = data_nh3_lbs - NH3,
       pct_nh3_error = (nh3_error / NH3) * 100
     )
 

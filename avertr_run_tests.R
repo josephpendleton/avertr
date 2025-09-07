@@ -294,6 +294,38 @@ onshore_257_nw_2020_test_hourly <- test_hourly(
 
 
 
+# 500 MW ROOFTOP PV CAROLINAS 2017 #############
+## Run avertr Scenario ===========
+rooftoppv_500_carolinas_2017 <- generate_reduction(
+  onshore_wind_capacity_mw = 500,
+  project_region = "Carolinas",
+  project_year = 2017,
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2017/avertr_rdf_Carolinas_2017.rds"
+) |>
+  avert(
+    project_region = "Carolinas",
+    project_year = 2017,
+    avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/2017/avertr_rdf_Carolinas_2017.rds"
+  )
+
+
+## Test =============
+### annual -----------
+rooftoppv_500_carolinas_2017_test_annual <- test_annual(
+  avertr_results = rooftoppv_500_carolinas_2017,
+  avert_run_filepath = "./test_scenarios/500MW_RPV_CL_09072025.xlsx"
+)
+
+### hourly -----------
+rooftoppv_500_carolinas_2017_test_hourly <- test_hourly(
+  avertr_results = rooftoppv_500_carolinas_2017,
+  avert_run_filepath = "./test_scenarios/500MW_RPV_CL_09072025.xlsx"
+)
+
+
+
 # SCEN NAME #############
 ## Run avertr Scenario ===========
 

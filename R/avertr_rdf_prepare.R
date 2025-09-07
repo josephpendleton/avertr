@@ -429,14 +429,17 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
   ## Reduce Size =======
   # Recast to reduce size
   bau_case_ap <- bau_case_ap |>
-    dplyr::mutate(
-      load_8760_col = as.integer(load_8760_col),
-      ff_load_bin_8760_col = as.integer(ff_load_bin_8760_col),
-      ff_load_bin_next_col = as.integer(ff_load_bin_next_col),
-      state = forcats::as_factor(state),
-      county = forcats::as_factor(county),
-      fuel_type = forcats::as_factor(fuel_type),
-      orispl_code = as.integer(orispl_code)
+    purrr::map(
+      ~ dplyr::mutate(
+        .x,
+        load_8760_col = as.integer(load_8760_col),
+        ff_load_bin_8760_col = as.integer(ff_load_bin_8760_col),
+        ff_load_bin_next_col = as.integer(ff_load_bin_next_col),
+        state = forcats::as_factor(state),
+        county = forcats::as_factor(county),
+        fuel_type = forcats::as_factor(fuel_type),
+        orispl_code = as.integer(orispl_code)
+      )
     )
 
 
