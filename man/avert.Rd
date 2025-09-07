@@ -7,7 +7,7 @@
 avert(
   hourly_load_reduction,
   avert_main_module_filepath,
-  avertr_rdf_filepath = NULL,
+  avertr_rdf_filepath,
   project_year,
   project_region
 )

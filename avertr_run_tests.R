@@ -297,7 +297,7 @@ onshore_257_nw_2020_test_hourly <- test_hourly(
 # 500 MW ROOFTOP PV CAROLINAS 2017 #############
 ## Run avertr Scenario ===========
 rooftoppv_500_carolinas_2017 <- generate_reduction(
-  onshore_wind_capacity_mw = 500,
+  rooftop_solar_pv_capacity_mw = 500,
   project_region = "Carolinas",
   project_year = 2017,
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
