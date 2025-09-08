@@ -1,9 +1,18 @@
 # A script to generate the "standard" avertr RDFs using prepare_rdfs()
-# Runs 2018 through 2023
-# Assumes you're running from a working directory which contains a directory
-#   named regional_data_files, that regional_data_files contains 7 folders named
-#   2017, 2018, . . ., 2023, and that each of those 7 folders contains all 14
-#   AVERT regional data files for the corresponding year.
+# Runs 2017 through 2023
+# Assumes:
+#   1. You're running from a working directory which contains a directory
+#   named regional_data_files
+#   2. regional_data_files contains 7 folders named 2017, 2018, . . ., 2023
+#   3. Each of those 7 folders contains all 14 AVERT regional data files for the
+#   corresponding year.
+#   4. The file names for the AVERT regional data files within each folder are
+#   such that, if you sort them alphabetically by file name, they will be in the
+#   same order as the strings in the region_names vector defined below. (This
+#   should be the case unless you've changed the names of the AVERT regional
+#   data files. One exception: you may need to go onto Web Archive to download
+#   the 2020 Southwest RDF, since EPA has (I think mistakenly) left it out of
+#   the 2020 RDFs zip file, and it may download with a different name.)
 
 library(avertr)
 

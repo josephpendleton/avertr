@@ -157,7 +157,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
       # A bit of a hack, but if the load is higher than or equal to the highest
       #   ff load bin, simply assign it the highest load bin. If it's lower than
       #   or equal to the lowest load bin, assign it the lowest load bin. These
-      #   hours get  zeroed out in "ZERO EXTREME LOAD HOURS" below. Note that
+      #   hours get zeroed out in "ZERO EXTREME LOAD HOURS" below. Note that
       #   before they are zeroed out, the highest load bin hours have NA values
       #   for all their data, since in add_next_bin() from avertr_rdf_prepare.R
       #   we set the "next" load bin of the highest load bin to NA.
@@ -477,7 +477,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   }
 
 
-
+  browser()
   # ZERO EXTREME LOAD HOURS #######
   # Some load hours fall above the highest load bin or below the lowest one.
   #   Their values are replaced with 0s. Note that we do not zero the results if
@@ -485,20 +485,43 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   #   If load exactly equals the highest load bin, you get an error in AVERT, so
   #   we do zero those cases (not sure how else we'd deal with them since
   #   there's no next load bin to interpolate with.)
+
+  # Add back the BAU load because we also want hours where the BAU load is
+  #   outside the load bin (whether or not the new load is) to be 0.
+  bau_time_load <- bau_case_ap_region |>
+    dplyr::distinct(
+      datetime_8760_col, load_8760_col
+    )
+
+  differences_final <- differences_final |>
+    dplyr::inner_join(
+      bau_time_load,
+      by = dplyr::join_by(datetime_8760_col),
+      na_matches = "never",
+      unmatched = "error",
+      relationship = "many-to-one"
+    )
+
+  # Then make all the hours outside the load bins 0
   differences_final <- differences_final |>
     dplyr::mutate(
       dplyr::across(
         dplyr::contains("data"),
         ~ dplyr::if_else(
-          load_8760_col >= max(ff_load_bin_key) |
-            load_8760_col < min(ff_load_bin_key),
+          load_8760_col.x >= max(ff_load_bin_key) |
+            load_8760_col.x < min(ff_load_bin_key) |
+            load_8760_col.y >= max(ff_load_bin_key) |
+            load_8760_col.y < min(ff_load_bin_key),
           0,
           .x
         )
       )
     )
 
-
+  # Finally remove the BAU load column and rename the new column
+  differences_final <- differences_final |>
+    dplyr::select(!load_8760_col.y) |>
+    dplyr::rename(load_8760_col = load_8760_col.x)
 
   # OTHER STATS #########
   pct_hourly_load_reduction <- hourly_load_reduction / bau_load_8760

@@ -47,8 +47,9 @@ flat_500_ca <- adjust_reduction(
 ) |>
   avert(
     project_region = "California",
-    project_year = "2023",
+    project_year = 2023,
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+    avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_California_2023.rds"
   )
 
 
@@ -56,13 +57,13 @@ flat_500_ca <- adjust_reduction(
 ### annual -----------
 flat_500_ca_test_annual <- test_annual(
   avertr_results = flat_500_ca,
-  avert_run_filepath = "./test_scenarios/500MW_flat_load_reduction_RM_06102025.xlsx"
+  avert_run_filepath = "./test_scenarios/500MW_flat_load_reduction_CA_06102025.xlsx"
 )
 
 ### hourly -----------
 # flat_500_ca_test_hourly <- test_hourly(
 #   avertr_results = flat_500_ca,
-#   avert_run_filepath = "./test_scenarios/500MW_flat_load_reduction_RM_06102025.xlsx"
+#   avert_run_filepath = "./test_scenarios/500MW_flat_load_reduction_CA_06102025.xlsx"
 # )
 
 
@@ -104,13 +105,13 @@ utilitypv_900_rocky_test_annual <- test_annual(
 rooftoppv_20_texas <- generate_reduction(
   rooftop_solar_pv_capacity_mw = 20,
   project_region = "Texas",
-  project_year = "2023",
+  project_year = 2023,
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
   avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Texas_2023.rds"
 ) |>
   avert(
     project_region = "Texas",
-    project_year = "2023",
+    project_year = 2023,
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
     avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Texas_2023.rds"
   )
@@ -137,9 +138,9 @@ rooftoppv_20_texas_annual <- test_annual(
 flat_2193_ne <- avert(
   hourly_load_reduction = rep(2193, 8760),
   project_region = "New England",
-  project_year = "2023",
+  project_year = 2023,
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_New England_2023.rds"
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_New England_2023.rds"
 )
 
 
@@ -166,15 +167,15 @@ multiple_tennessee <- generate_reduction(
   onshore_wind_capacity_mw = 200,
   rooftop_solar_pv_capacity_mw = 300,
   project_region = "Tennessee",
-  project_year = "2023",
+  project_year = 2023,
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Tennessee_2023.rds"
 ) |>
   avert(
     project_region = "Tennessee",
-    project_year = "2023",
+    project_year = 2023,
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-    avertr_rdf_filepath = "./avertr_rdfs/avertr_rdf_Tennessee_2023.rds"
+    avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Tennessee_2023.rds"
   )
 
 ## Test =============

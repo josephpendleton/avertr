@@ -10,9 +10,6 @@
 #   rdf_name_vector = c("rdf2", "rdf1", "rdf3"). rdfs_year is a number
 #   representing the year of the AVERT RDFs. It is used at the very beginning
 #   to generate the vector of hours in the year.
-# I've currently only tested this using rdf_directory_filepath as a directory
-#   containing all 14 AVERT RDFs for 2023. This script is NOT yet robust to
-#   leap years. Takes ~5 mins to run on my machine.
 
 #' Title
 #'
