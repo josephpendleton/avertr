@@ -39,7 +39,6 @@ generate_reduction <- function(
     utility_solar_pv_capacity_mw = 0,
     rooftop_solar_pv_capacity_mw = 0
 ) {
-
   # DEFINE/LOAD OBJECTS ######
   # If it's a leap year, set the number of hours in the year to 8784, else 8760.
   # (Note that "8760" is used in variable names throughout the code, but refers
@@ -243,7 +242,6 @@ adjust_reduction <- function(
     project_year = NULL,
     project_region = NULL
 ) {
-
   t_and_d_loss_factor <- t_and_d_losses |>
     dplyr::filter(`Data year` == project_year) |>
     dplyr::pull(project_region)
