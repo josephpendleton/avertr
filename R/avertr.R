@@ -477,7 +477,7 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
   }
 
 
-  browser()
+
   # ZERO EXTREME LOAD HOURS #######
   # Some load hours fall above the highest load bin or below the lowest one.
   #   Their values are replaced with 0s. Note that we do not zero the results if
@@ -544,6 +544,10 @@ avert <- function(hourly_load_reduction, avert_main_module_filepath,
     hourly_resulting_generation_change ~ hourly_load_change
   ) |>
     summary()
+
+  # Only save important parts of summary to reduce space when saving the result
+  #   of avert() as a .rds
+  signal_to_noise <- signal_to_noise[c("coefficients", "r.squared")]
 
 
 
