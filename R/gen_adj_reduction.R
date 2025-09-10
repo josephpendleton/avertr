@@ -25,8 +25,8 @@
 generate_reduction <- function(
     project_year,
     project_region,
-    avert_main_module_filepath,
     avertr_rdf_filepath,
+    avert_main_module_filepath,
 
     apply_reduction_top_x_pct_hours = 0,
     reduce_x_pct_in_top_hours = 0,

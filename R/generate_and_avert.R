@@ -1,3 +1,11 @@
+#' Title
+#'
+#' @param ...
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 generate_and_avert <- function(...) {
   # Get a list of arguments to be passed to generate_reduction()
   args_generate_reduction <- list(...)
@@ -7,8 +15,8 @@ generate_and_avert <- function(...) {
     c(
       "project_year",
       "project_region",
-      "avert_main_module_filepath",
-      "avertr_rdf_filepath"
+      "avertr_rdf_filepath",
+      "avert_main_module_filepath"
     )
   ]
 

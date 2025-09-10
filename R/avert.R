@@ -46,8 +46,8 @@
 #' @export
 #'
 #' @examples
-avert <- function(hourly_load_reduction, avert_main_module_filepath,
-                  avertr_rdf_filepath, project_year, project_region) {
+avert <- function(hourly_load_reduction, project_year, project_region,
+                  avertr_rdf_filepath, avert_main_module_filepath) {
   # DEFINE/LOAD OBJECTS ######
 
   # If it's a leap year, set the number of hours in the year to 8784, else 8760.

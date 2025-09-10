@@ -2,6 +2,7 @@
 
 export(adjust_reduction)
 export(avert)
+export(generate_and_avert)
 export(generate_reduction)
 export(prepare_rdfs)
 export(test_annual)
