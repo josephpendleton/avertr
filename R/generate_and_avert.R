@@ -27,3 +27,5 @@ generate_and_avert <- function(...) {
   #   and the avert() arguments
   do.call(avert, c(list(gen_out), args_avert))
 }
+
+

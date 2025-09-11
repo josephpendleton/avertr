@@ -187,7 +187,9 @@ test_annual <- function(avertr_results, avert_run_filepath) {
       dplyr::lst(absolute_pct_errors_above_01_egu)
     )
   }
+
   return(annual_test_results)
+
 }
 
 
@@ -403,7 +405,9 @@ test_hourly <- function(avertr_results, avert_run_filepath) {
       dplyr::lst(absolute_pct_errors_above_001_hourly)
     )
   }
+
   return(hourly_test_results)
+
 }
 
 

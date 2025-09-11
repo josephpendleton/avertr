@@ -23,6 +23,7 @@ osw_6000_ny <- generate_reduction(
   )
 
 
+
 ## Test =============
 ### annual -----------
 osw_6000_ny_test_annual <- test_annual(
@@ -116,6 +117,7 @@ rooftoppv_20_texas <- generate_reduction(
     avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Texas_2023.rds"
   )
 
+
 ## Test =============
 ### annual -----------
 rooftoppv_20_texas_annual <- test_annual(
@@ -177,6 +179,7 @@ multiple_tennessee <- generate_reduction(
     avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
     avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Tennessee_2023.rds"
   )
+
 
 ## Test =============
 ### annual -----------

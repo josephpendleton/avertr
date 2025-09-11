@@ -600,6 +600,7 @@ avert <- function(hourly_load_reduction, project_year, project_region,
   )
 
   return(avertr_results)
+
 }
 
 
@@ -634,3 +635,5 @@ t_and_d_losses <- t_and_d_losses |>
     `Southwest` = `Western Interconnect`
   ) |>
   dplyr::select(!c(`Eastern Interconnect`, `Western Interconnect`))
+
+

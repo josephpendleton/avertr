@@ -451,6 +451,7 @@ prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
     )
 
   return(avertr_rdfs)
+
 }
 
 

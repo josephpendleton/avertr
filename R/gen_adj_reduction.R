@@ -40,6 +40,7 @@ generate_reduction <- function(
     rooftop_solar_pv_capacity_mw = 0
 ) {
   # DEFINE/LOAD OBJECTS ######
+
   # If it's a leap year, set the number of hours in the year to 8784, else 8760.
   # (Note that "8760" is used in variable names throughout the code, but refers
   #   to either 8760 or 8784.)
@@ -251,3 +252,5 @@ adjust_reduction <- function(
   return(adjusted_hourly_load_reduction)
 
 }
+
+
