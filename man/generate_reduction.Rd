@@ -2,7 +2,7 @@
 % Please edit documentation in R/gen_adj_reduction.R
 \name{generate_reduction}
 \alias{generate_reduction}
-\title{Title}
+\title{Generate an hourly load reduction vector}
 \usage{
 generate_reduction(
   project_year,
@@ -20,8 +20,76 @@ generate_reduction(
 )
 }
 \arguments{
-\item{rooftop_solar_pv_capacity_mw}{}
+\item{project_year}{An integer giving the year of the run.}
+
+\item{project_region}{A string giving the region of the run. It must exactly
+match one of the 14 AVERT regions.}
+
+\item{avertr_rdf_filepath}{A string giving a filepath to an}
+
+\item{avert_main_module_filepath}{A string giving a filepath to an empty
+version of the AVERT Main Module (v4.3) which has been saved as a .xlsx file.}
+
+\item{apply_reduction_top_x_pct_hours}{A number from 0 to 100 giving the top
+X\% percent of hours in which to reduce load by the amount specified with
+\code{reduce_x_pct_in_top_hours}.}
+
+\item{reduce_x_pct_in_top_hours}{A number from 0 to 100 giving the percent
+reduction in load that should occur in the top X\% of hours, where X is
+specified with \code{apply_reduction_top_x_pct_hours}.}
+
+\item{reduce_annual_generation_by_x_gwh}{A number giving the total number of
+GWh by which to reduce annual load. The reduction is spread out evenly across
+all hours of the year.}
+
+\item{reduce_each_hour_by_x_mw}{A number giving the MW by which to reduce
+load in each hour.}
+
+\item{onshore_wind_capacity_mw}{A number giving the MW of onshore wind to be
+deployed.}
+
+\item{offshore_wind_capacity_mw}{A number giving the MW of offshore wind to
+be deployed.}
+
+\item{utility_solar_pv_capacity_mw}{A number giving the MW of utilty solar to
+be deployed.}
+
+\item{rooftop_solar_pv_capacity_mw}{A number giving the MW of rooftop solar
+to be deployed.}
+}
+\value{
+An 8760-length (or, in a leap year, 8784-length) numeric vector
+giving the hourly MW reduction before adjustment for transmission and
+distribution losses.
 }
 \description{
-Title
+\code{generate_reduction()} generates an 8760-length (or, in a leap year,
+8784-length) vector representing the hourly fossil fuel load reduction
+associated with energy efficiency and/or renewable energy measures. The
+resultant vector can be used with \code{\link[=avert]{avert()}}.
+}
+\details{
+The arguments specifying load change are "stacked" by default. E.g., passing
+\code{reduce_each_hour_by_x_mw = 25} and \code{utility_solar_pv_capacity_mw = 80} models
+the reduction in load associated with both reducing each hour by 25 MW and
+deploying 80 MW of utility-scale solar.
+
+\code{apply_reduction_top_x_pct_hours} and \code{reduce_x_pct_in_top_hours} work together.
+They must both be specified in order to have an effect. Only passing a value
+to one of them does.
+
+Values for \code{rooftop_solar_pv_capacity_mw} are automatically scaled up to
+account for transmission and distribution losses. Similarly values passed to
+\code{apply_reduction_top_x_pct_hours}/\code{reduce_x_pct_in_top_hours},
+\code{reduce_annual_generation_by_x_gwh}, and/or \code{reduce_each_hour_by_x_mw} are
+expected to be demand-side values, and thus are scaled up to account for
+transmission and distribution losses. See \code{\link[=adjust_reduction]{adjust_reduction()}} for more
+information.
+
+The structure of this function largely mirrors the structure of AVERT's Main
+Module, so see the AVERT User Manual for additional information.
+}
+\examples{
+# example code
+
 }

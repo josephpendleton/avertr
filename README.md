@@ -59,19 +59,18 @@ about 4 GB.[^1] Your computer must have 16 GB of RAM.
 
 ## Examples
 
-In avertr, you use `avert()` to model the emissions (and generation and
-heat input) changes associated with a change in hourly generation within
-a given region in a given year. avert() takes an 8760-length (or, in a
-leap year, 8784-length) vector representing the hourly MW reduction
+With avertr, you use `avert()` to model the emissions (and generation
+and heat input) changes associated with a change in hourly generation
+within a given region in a given year. avert() takes an 8760-length (or,
+in a leap year, 8784-length) vector representing the hourly MW reduction
 fossil fuel generation.
 
 ``` r
-# Note: Example won't run unless you match filepath names locally
-
-library(avertr)
+# Not run
 
 # To model a 100 MW reduction in fossil fuel generation in each hour of 2023
 #   in New England
+
 avert(
   hourly_load_reduction = rep(100, 8760),
   project_year = 2023,
@@ -86,10 +85,11 @@ Instead of manually specifying the 8760 (or 8784) vector, as above,
 energy efficiency projects.
 
 ``` r
-# Note: Example won't run unless you match filepath names locally
+# Not run
 
 # To model deploying 200 MW offshore wind capacity on top of reducing 
 #   generation by 10% in the top 5% of hours in 2023 in New England
+
 reduc_vec <- generate_reduction(
   offshore_wind_capacity_mw = 200,
   apply_reduction_top_x_pct_hours = 5,
@@ -114,7 +114,10 @@ More compactly, `generate_and_avert()` performs both
 following chunk is identical to the output of the previous chunk.
 
 ``` r
-# Note: Example won't run unless you match filepath names locally
+# Not run
+
+# To model deploying 200 MW offshore wind capacity on top of reducing 
+#   generation by 10% in the top 5% of hours in 2023 in New England
 
 generate_and_avert(
   offshore_wind_capacity_mw = 200,
@@ -127,9 +130,37 @@ generate_and_avert(
 )
 ```
 
-You can also apply transmission and distribution losses to a for
-building a vector representing a demand-side change with
-`adjust_reduction()`.
+You can also apply transmission and distribution losses to a vector with
+`adjust_reduction()`. This is useful for, e.g., modeling an energy
+efficiency program which will decrease demand by 10 MW each hour, since
+a 10 MW decrease in demand will lead to an even greater decrease in
+generation, since generators must supply 10 MW *plus* whatever is lost
+in transmission and distribution. Since the vector we pass to `avert()`
+represents reduction in generation, we need to scale the 10 MW up by the
+given region and year’s transmission and distribution loss.
+
+``` r
+# Not run
+
+# To model an energy efficiency program which reduces demand by 10 MW in each
+#   hour of 2023 in Midwest
+
+decrease_in_demand <- rep(10, 8760)
+
+decrease_in_generation <- adjust_reduction(
+  unadjusted_hourly_load_reduction = decrease_in_demand,
+  project_year = 2023,
+  project_region = "Midwest"
+)
+
+avert(
+  hourly_load_reduction = decrease_in_generation,
+  project_year = 2023,
+  project_region = "Midwest",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Midwest_2023.rds"
+)
+```
 
 ## More on avertr
 

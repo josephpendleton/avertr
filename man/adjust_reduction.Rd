@@ -2,17 +2,51 @@
 % Please edit documentation in R/gen_adj_reduction.R
 \name{adjust_reduction}
 \alias{adjust_reduction}
-\title{Title}
+\title{Adjust an hourly load reduction vector for T&D losses}
 \usage{
 adjust_reduction(
-  unadjusted_hourly_load_reduction = NULL,
-  project_year = NULL,
-  project_region = NULL
+  unadjusted_hourly_load_reduction,
+  project_year,
+  project_region
 )
 }
 \arguments{
-\item{project_region}{}
+\item{unadjusted_hourly_load_reduction}{An 8760-length (or, in a leap year,
+8784-length) numeric vector giving the hourly MW reduction before adjustment
+for transmission and distribution losses.}
+
+\item{project_year}{An integer giving the year of the run.}
+
+\item{project_region}{A string giving the region of the run. It must exactly
+match one of the 14 AVERT regions.}
+}
+\value{
+A vector with the same length as \code{unadjusted_hourly_load_reduction}.
 }
 \description{
-Title
+\code{adjust_reduction()} adjusts an 8760-length (or, in a leap year, 8784-length)
+vector up to account for transmission and distribution losses.
+}
+\details{
+Each element in the vector is scaled up by the constant 1 / (1 - t_and_d_loss),
+where t_and_d_loss is the proportion of electricity lost during transmission
+and distribution in the given year and region.
+
+The vector passed to \code{\link[=avert]{avert()}} represents the reduction in fossil fuel
+generation. But sometimes you want to model a reduction in demand. E.g.,
+suppose an energy efficiency program decreases demand by 10 MW each hour. You
+can't directly pass an 8760-length vector of 10s to \code{\link[=avert]{avert()}} because there is
+a 10 MW reduction in demand in each hour, but \code{\link[=avert]{avert()}} expects the reduction
+in (fossil fuel) generation in each hour. a 10 MW decrease in demand will
+lead to an even greater decrease in generation, since generators must supply
+10 MW plus whatever is lost in transmission and distribution. Thus, we
+must adjust the vector to be larger.
+
+Note that \code{\link[=generate_reduction]{generate_reduction()}} automatically scales up rooftop PV capacity,
+so do not call this function on the output of \code{\link[=generate_reduction]{generate_reduction()}} to attempt
+to adjust the rooftop PV capacity — that would scale the vector twice.
+}
+\examples{
+# example code
+
 }

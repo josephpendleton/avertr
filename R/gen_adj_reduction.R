@@ -1,27 +1,62 @@
-# Generates an 8760 hourly load reduction vector to be input into avert(). For
-#   Rooftop PV and distributed storage, losses used as of AVERT v4.3 are
-#   hard-coded. If all you want to do is adjust an 8760 representing an onsite
-#   energy program to also account for T&D losses then use adjust_reduction().
-
-#' Title
+#' Generate an hourly load reduction vector
 #'
-#' @param project_year
-#' @param project_region
-#' @param avert_main_module_filepath
-#' @param avertr_rdf_filepath
-#' @param apply_reduction_top_x_pct_hours
-#' @param reduce_x_pct_in_top_hours
-#' @param reduce_annual_generation_by_x_gwh
-#' @param reduce_each_hour_by_x_mw
-#' @param onshore_wind_capacity_mw
-#' @param offshore_wind_capacity_mw
-#' @param utility_solar_pv_capacity_mw
-#' @param rooftop_solar_pv_capacity_mw
+#' `generate_reduction()` generates an 8760-length (or, in a leap year,
+#' 8784-length) vector representing the hourly fossil fuel load reduction
+#' associated with energy efficiency and/or renewable energy measures. The
+#' resultant vector can be used with [avert()].
 #'
-#' @returns
+#' The arguments specifying load change are "stacked" by default. E.g., passing
+#' `reduce_each_hour_by_x_mw = 25` and `utility_solar_pv_capacity_mw = 80` models
+#' the reduction in load associated with both reducing each hour by 25 MW and
+#' deploying 80 MW of utility-scale solar.
+#'
+#' `apply_reduction_top_x_pct_hours` and `reduce_x_pct_in_top_hours` work together.
+#' They must both be specified in order to have an effect. Only passing a value
+#' to one of them does.
+#'
+#' Values for `rooftop_solar_pv_capacity_mw` are automatically scaled up to
+#' account for transmission and distribution losses. Similarly values passed to
+#' `apply_reduction_top_x_pct_hours`/`reduce_x_pct_in_top_hours`,
+#' `reduce_annual_generation_by_x_gwh`, and/or `reduce_each_hour_by_x_mw` are
+#' expected to be demand-side values, and thus are scaled up to account for
+#' transmission and distribution losses. See [adjust_reduction()] for more
+#' information.
+#'
+#' The structure of this function largely mirrors the structure of AVERT's Main
+#' Module, so see the AVERT User Manual for additional information.
+#' @param project_year An integer giving the year of the run.
+#' @param project_region A string giving the region of the run. It must exactly
+#' match one of the 14 AVERT regions.
+#' @param avert_main_module_filepath A string giving a filepath to an empty
+#' version of the AVERT Main Module (v4.3) which has been saved as a .xlsx file.
+#' @param avertr_rdf_filepath A string giving a filepath to an
+#' @param apply_reduction_top_x_pct_hours A number from 0 to 100 giving the top
+#' X% percent of hours in which to reduce load by the amount specified with
+#' `reduce_x_pct_in_top_hours`.
+#' @param reduce_x_pct_in_top_hours A number from 0 to 100 giving the percent
+#' reduction in load that should occur in the top X% of hours, where X is
+#' specified with `apply_reduction_top_x_pct_hours`.
+#' @param reduce_annual_generation_by_x_gwh A number giving the total number of
+#' GWh by which to reduce annual load. The reduction is spread out evenly across
+#' all hours of the year.
+#' @param reduce_each_hour_by_x_mw A number giving the MW by which to reduce
+#' load in each hour.
+#' @param onshore_wind_capacity_mw A number giving the MW of onshore wind to be
+#' deployed.
+#' @param offshore_wind_capacity_mw A number giving the MW of offshore wind to
+#' be deployed.
+#' @param utility_solar_pv_capacity_mw A number giving the MW of utilty solar to
+#' be deployed.
+#' @param rooftop_solar_pv_capacity_mw A number giving the MW of rooftop solar
+#' to be deployed.
+#'
+#' @returns An 8760-length (or, in a leap year, 8784-length) numeric vector
+#' giving the hourly MW reduction before adjustment for transmission and
+#' distribution losses.
 #' @export
-#'
 #' @examples
+#' # example code
+#'
 generate_reduction <- function(
     project_year,
     project_region,
@@ -51,7 +86,7 @@ generate_reduction <- function(
   }
 
   # Scale down the two percents entered by users, since they're assumed to be
-  #   1-100, but are more practically used here are fractions from 0 to 1.
+  #   0-100, but are more practically used here are fractions from 0 to 1.
   apply_reduction_top_x_pct_hours <- apply_reduction_top_x_pct_hours / 100
   reduce_x_pct_in_top_hours <- reduce_x_pct_in_top_hours / 100
 
@@ -86,7 +121,6 @@ generate_reduction <- function(
   ## Box 1: Enter EE based on the % reduction of regional fossil generation ======
   if (apply_reduction_top_x_pct_hours != 0 & reduce_x_pct_in_top_hours != 0) {
     # The number of hours to apply the reduction in
-    # NOTE: fix rounding to be consistent w excel rounding??
     number_of_top_hours <- round(yr_hrs * apply_reduction_top_x_pct_hours)
 
     # The indices where the top hours are located
@@ -219,29 +253,45 @@ generate_reduction <- function(
 }
 
 
-# If you have an 8760 vector you want to use to model an onsite
-#   energy-efficiency program, you'll reduce load on fossil fuel units by the
-#   amount of onsite energy you save, PLUS the T&D losses associated with
-#   delivering that amount of energy. So your 8760 vector of purely onsite
-#   energy reductions should be adjusted up to account for this fact. That's
-#   what this function does. Losses from AVERT v4.3 are hard-coded in. Note that
-#   rooftop PV and distributed storage are already adjusted up for T&D losses in
-#   generate_reduction().
 
-#' Title
+#' Adjust an hourly load reduction vector for T&D losses
 #'
-#' @param unadjusted_hourly_load_reduction
-#' @param project_year
-#' @param project_region
+#' `adjust_reduction()` adjusts an 8760-length (or, in a leap year, 8784-length)
+#' vector up to account for transmission and distribution losses.
 #'
-#' @returns
+#' Each element in the vector is scaled up by the constant 1 / (1 - t_and_d_loss),
+#' where t_and_d_loss is the proportion of electricity lost during transmission
+#' and distribution in the given year and region.
+#'
+#' The vector passed to [avert()] represents the reduction in fossil fuel
+#' generation. But sometimes you want to model a reduction in demand. E.g.,
+#' suppose an energy efficiency program decreases demand by 10 MW each hour. You
+#' can't directly pass an 8760-length vector of 10s to [avert()] because there is
+#' a 10 MW reduction in demand in each hour, but [avert()] expects the reduction
+#' in (fossil fuel) generation in each hour. a 10 MW decrease in demand will
+#' lead to an even greater decrease in generation, since generators must supply
+#' 10 MW plus whatever is lost in transmission and distribution. Thus, we
+#' must adjust the vector to be larger.
+#'
+#' Note that [generate_reduction()] automatically scales up rooftop PV capacity,
+#' so do not call this function on the output of [generate_reduction()] to attempt
+#' to adjust the rooftop PV capacity — that would scale the vector twice.
+#' @param unadjusted_hourly_load_reduction An 8760-length (or, in a leap year,
+#' 8784-length) numeric vector giving the hourly MW reduction before adjustment
+#' for transmission and distribution losses.
+#' @param project_year An integer giving the year of the run.
+#' @param project_region A string giving the region of the run. It must exactly
+#' match one of the 14 AVERT regions.
+#'
+#' @returns A vector with the same length as `unadjusted_hourly_load_reduction`.
 #' @export
-#'
 #' @examples
+#' # example code
+#'
 adjust_reduction <- function(
-    unadjusted_hourly_load_reduction = NULL,
-    project_year = NULL,
-    project_region = NULL
+    unadjusted_hourly_load_reduction,
+    project_year,
+    project_region
 ) {
   t_and_d_loss_factor <- t_and_d_losses |>
     dplyr::filter(`Data year` == project_year) |>
