@@ -1,7 +1,7 @@
 #' Generate an hourly load reduction vector
 #'
 #' `generate_reduction()` generates an 8760-length (or, in a leap year,
-#' 8784-length) vector representing the hourly fossil fuel load reduction
+#' 8784-length) vector representing the hourly fossil-fuel generation reduction
 #' associated with energy efficiency and/or renewable energy measures. The
 #' resultant vector can be used with [avert()].
 #'
@@ -29,7 +29,8 @@
 #' match one of the 14 AVERT regions.
 #' @param avert_main_module_filepath A string giving a filepath to an empty
 #' version of the AVERT Main Module (v4.3) which has been saved as a .xlsx file.
-#' @param avertr_rdf_filepath A string giving a filepath to an
+#' @param avertr_rdf_filepath A string giving a filepath to the avertr regional
+#' data file for the year and region.
 #' @param apply_reduction_top_x_pct_hours A number from 0 to 100 giving the top
 #' X% percent of hours in which to reduce load by the amount specified with
 #' `reduce_x_pct_in_top_hours`.
@@ -55,7 +56,28 @@
 #' distribution losses.
 #' @export
 #' @examples
-#' # example code
+#' \dontrun{
+#' # To model deploying 200 MW offshore wind capacity on top of reducing
+#' #   generation by 10% in the top 5% of hours in 2023 in New England
+#'
+#' reduc_vec <- generate_reduction(
+#'   offshore_wind_capacity_mw = 200,
+#'   apply_reduction_top_x_pct_hours = 5,
+#'   reduce_x_pct_in_top_hours = 10,
+#'   project_year = 2023,
+#'   project_region = "New England",
+#'   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+#'   avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_New England_2023.rds"
+#' )
+#'
+#' avert(
+#'   hourly_load_reduction = reduc_vec,
+#'   project_year = 2023,
+#'   project_region = "New England",
+#'   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+#'   avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_New England_2023.rds"
+#' )
+#' }
 #'
 generate_reduction <- function(
     project_year,
@@ -263,12 +285,12 @@ generate_reduction <- function(
 #' where t_and_d_loss is the proportion of electricity lost during transmission
 #' and distribution in the given year and region.
 #'
-#' The vector passed to [avert()] represents the reduction in fossil fuel
+#' The vector passed to [avert()] represents the reduction in fossil-fuel
 #' generation. But sometimes you want to model a reduction in demand. E.g.,
 #' suppose an energy efficiency program decreases demand by 10 MW each hour. You
 #' can't directly pass an 8760-length vector of 10s to [avert()] because there is
 #' a 10 MW reduction in demand in each hour, but [avert()] expects the reduction
-#' in (fossil fuel) generation in each hour. a 10 MW decrease in demand will
+#' in (fossil-fuel) generation in each hour. a 10 MW decrease in demand will
 #' lead to an even greater decrease in generation, since generators must supply
 #' 10 MW plus whatever is lost in transmission and distribution. Thus, we
 #' must adjust the vector to be larger.
@@ -286,7 +308,26 @@ generate_reduction <- function(
 #' @returns A vector with the same length as `unadjusted_hourly_load_reduction`.
 #' @export
 #' @examples
-#' # example code
+#' \dontrun{
+#' # To model an energy efficiency program which reduces demand by 10 MW in each
+#' #   hour of 2023 in Midwest
+#'
+#' decrease_in_demand <- rep(10, 8760)
+#'
+#' decrease_in_generation <- adjust_reduction(
+#'   unadjusted_hourly_load_reduction = decrease_in_demand,
+#'    project_year = 2023,
+#'    project_region = "Midwest"
+#'  )
+#'
+#' avert(
+#'   hourly_load_reduction = decrease_in_generation,
+#'   project_year = 2023,
+#'   project_region = "Midwest",
+#'   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+#'   avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_Midwest_2023.rds"
+#' )
+#' }
 #'
 adjust_reduction <- function(
     unadjusted_hourly_load_reduction,

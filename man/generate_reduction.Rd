@@ -25,7 +25,8 @@ generate_reduction(
 \item{project_region}{A string giving the region of the run. It must exactly
 match one of the 14 AVERT regions.}
 
-\item{avertr_rdf_filepath}{A string giving a filepath to an}
+\item{avertr_rdf_filepath}{A string giving a filepath to the avertr regional
+data file for the year and region.}
 
 \item{avert_main_module_filepath}{A string giving a filepath to an empty
 version of the AVERT Main Module (v4.3) which has been saved as a .xlsx file.}
@@ -64,7 +65,7 @@ distribution losses.
 }
 \description{
 \code{generate_reduction()} generates an 8760-length (or, in a leap year,
-8784-length) vector representing the hourly fossil fuel load reduction
+8784-length) vector representing the hourly fossil-fuel generation reduction
 associated with energy efficiency and/or renewable energy measures. The
 resultant vector can be used with \code{\link[=avert]{avert()}}.
 }
@@ -90,6 +91,27 @@ The structure of this function largely mirrors the structure of AVERT's Main
 Module, so see the AVERT User Manual for additional information.
 }
 \examples{
-# example code
+\dontrun{
+# To model deploying 200 MW offshore wind capacity on top of reducing
+#   generation by 10\% in the top 5\% of hours in 2023 in New England
+
+reduc_vec <- generate_reduction(
+  offshore_wind_capacity_mw = 200,
+  apply_reduction_top_x_pct_hours = 5,
+  reduce_x_pct_in_top_hours = 10,
+  project_year = 2023,
+  project_region = "New England",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_New England_2023.rds"
+)
+
+avert(
+  hourly_load_reduction = reduc_vec,
+  project_year = 2023,
+  project_region = "New England",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2023/avertr_rdf_New England_2023.rds"
+)
+}
 
 }

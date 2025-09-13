@@ -63,12 +63,12 @@ With avertr, you use `avert()` to model the emissions (and generation
 and heat input) changes associated with a change in hourly generation
 within a given region in a given year. avert() takes an 8760-length (or,
 in a leap year, 8784-length) vector representing the hourly MW reduction
-fossil fuel generation.
+fossil-fuel generation.
 
 ``` r
 # Not run
 
-# To model a 100 MW reduction in fossil fuel generation in each hour of 2023
+# To model a 100 MW reduction in fossil-fuel generation in each hour of 2023
 #   in New England
 
 avert(
@@ -134,7 +134,7 @@ You can also apply transmission and distribution losses to a vector with
 `adjust_reduction()`. This is useful for, e.g., modeling an energy
 efficiency program which will decrease demand by 10 MW each hour, since
 a 10 MW decrease in demand will lead to an even greater decrease in
-generation, since generators must supply 10 MW *plus* whatever is lost
+generation because generators must supply 10 MW *plus* whatever is lost
 in transmission and distribution. Since the vector we pass to `avert()`
 represents reduction in generation, we need to scale the 10 MW up by the
 given region and year’s transmission and distribution loss.

@@ -1,26 +1,61 @@
-# A function to convert AVERT regional data files (RDFs) into avertr RDFs.
-#   rdf_directory_filepath is the string of a filepath to a directory containing
-#   all (and only) a set of AVERT RDFs for a given year. rdf_name_vector is a
-#   vector of strings which it uses to name the avertr RDFs. This vector must
-#   have the same length as the number of files in rdf_directory_filepath, and
-#   the order of the names must correspond to the alphabetical order of the
-#   AVERT RDFs located in rdf_directory_filepath. E.g., if
-#   rdf_directory_filepath contains AVERT RDFs named B.xlsx, A.xlsx, and C.xlsx,
-#   and you want to name them "rdf1", "rdf2", and "rdf3" respectively, pass
-#   rdf_name_vector = c("rdf2", "rdf1", "rdf3"). rdfs_year is a number
-#   representing the year of the AVERT RDFs. It is used at the very beginning
-#   to generate the vector of hours in the year.
-
-#' Title
+#' Prepare avertr regional data files
 #'
-#' @param rdf_directory_filepath
-#' @param rdf_name_vector
-#' @param rdfs_year
+#' `prepare_rdfs()` prepares avertr regional data files from AVERT regional data
+#' files. Most users will not need to run `prepare_rdfs()` and can instead
+#' directly download and use the avertr regional data files.
 #'
-#' @returns
+#' avertr regional data files are required to run avertr. They have the same
+#' content as AVERT regional data files. The main difference is that avertr
+#' regional data files have been processed so that they can be easily used in
+#' avertr.
+#'
+#' You can download the AVERT regional data files from the EPA's website.
+#'
+#' Note that the 14 avertr regional data files for a single given year are
+#' together about 4 GB.
+#'
+#' @param rdf_directory_filepath A string giving the filepath to a directory
+#' containing all (and only) a set of AVERT regional data files for a given year.
+#' Within the directory the files must all come from the same year. But you do
+#' not need to include all 14 files for the year. If any of the files have
+#' hidden columns tidyxl::xlsx_cells() breaks, so you may need to manually
+#' all columns in some of the files.
+#' @param rdf_name_vector A character vector which has the same length as the
+#' number of files in the directory given by `rdf_directory_filepath`. This
+#' vector will be used to name each element in the returned list. The order of
+#' strings must match the order of filenames in the directory when they're read
+#' into R with [list.files()]. This should be alphabetical order. So, e.g., if
+#' the directory contains AVERT regional data files named B.xlsx, A.xlsx, and
+#' C.xlsx, and you want to name them "rdf1", "rdf2", and "rdf3" respectively. By
+#' default, the AVERT regional data file filenames should be identical within a
+#' given year, except for the region, and thus they are alphabetical by region.
+#' @param rdfs_year An integer giving the year of the regional data files.
+#'
+#' @returns A named list of elements, of the same length as the number of files
+#' in the directory given by `rdf_directory_filepath`, with the names coming
+#' from `rdf_name_vector`. Each element is itself a list of two objects. Each
+#' element of the list should be saved as a .rds file, after which it is
+#' officially an avertr regional data file, and can be used with avertr.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' # Generate avertr regional data files
+#' avertr_rdf_list <- prepare_rdfs(
+#'   "./regional_data_files/2021",
+#'   region_names,
+#'   2021
+#' )
+#'
+#' # Save each regional data file with a meaningful filename
+#' purrr::iwalk(
+#'   avertr_rdf_list,
+#'   ~ readr::write_rds(
+#'     .x,
+#'     file.path(".", paste0("avertr_rdf_", .y, "_", rdfs_year, ".rds")))
+#' )
+#' }
+#'
 prepare_rdfs <- function(rdf_directory_filepath, rdf_name_vector, rdfs_year) {
 
   # DEFINE/LOAD OBJECTS ############

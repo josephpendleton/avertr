@@ -34,18 +34,74 @@
 #   year. You can check this to ensure that you aren't requesting too much of a
 #   load change from avertr.
 
-#' Title
+#' Run an AVERT scenario in R
 #'
-#' @param hourly_load_reduction
-#' @param avert_main_module_filepath
-#' @param avertr_rdf_filepath
-#' @param project_year
-#' @param project_region
+#' `avert()` runs an AVERT scenario in R given an 8760-length (or, in a leap
+#' year, 8784-length) numeric vector representing the hourlyMW reduction in
+#' fossil-fuel generation in a given region and year.
 #'
-#' @returns
+#' It's not obvious from using AVERT, but under the hood every renewable energy
+#' or energy efficiency measure is ultimately translated into an hourly change
+#' in fossil-fuel generation, and then that hourly generation change is used to
+#' model changes in emissions. avertr explicitly divides this into two steps.
+#'
+#' Thus if you want to generate a vector representing deployment of renewable
+#' energy or energy efficiency measures like you would in AVERT, you must first
+#' run [generate_reduction()] to generate the vector, and then pass that vector
+#' to `avert()`.
+#'
+#' For convenience, [generate_and_avert()] performs both operations in one step
+#' to prevent the need to re-specify the same arguments in [generate_reduction()]
+#' and `avert()`.
+#'
+#' @param hourly_load_reduction An 8760-length (or, in a leap year,
+#' 8784-length) numeric vector giving the hourly MW reduction in fossil-fuel
+#' generation This vector can have negative values to represent negative
+#' reductions (i.e., increases) in fossil-fuel generation.
+#' @param project_year An integer giving the year of the run.
+#' @param project_region A string giving the region of the run. It must exactly
+#' match one of the 14 AVERT regions.
+#' @param avert_main_module_filepath A string giving a filepath to an empty
+#' version of the AVERT Main Module (v4.3) which has been saved as a .xlsx file.
+#' @param avertr_rdf_filepath A string giving a filepath to the avertr regional
+#' data file for the year and region.
+#'
+#' @returns A list with three elements:
+#'    1. `differences_final`, a tibble. In a region with N fossil-fuel generating
+#'        units, the tibble will have N * 8760 rows. Each row contains the changes
+#'        in emissions (and generation and heat input) associated with a given
+#'        fossil-fuel generating unit in a given hour. Those changes appear in
+#'        the columns with a "data_" prefix. The other columns given additional
+#'        information on the generating unit and the fossil-fuel load bin.
+#'    2. `signal_to_noise`, a two-element list containing A. the linear
+#'        regression coefficients which result from regressing the generation
+#'        change calculated by avertr onto the input generation change, and
+#'        B. the r squared statistic from same regression.
+#'    3.  `pct_hourly_load_reduction`, an 8760-length (or, in a leap year,
+#'        8784-length) numeric vector where each value represents the percent
+#'        reduction in generation compared to the business-as-usual scenario.
+#'        Presented as numbers ranging from 0 to 1. E.g., 0.028 would represent
+#'        a 2.8% decrease in generation. AVERT suggests caution when modeling
+#'        a scenario where any given hour has a >15% change in generation.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' # To model a 100 MW reduction in fossil fuel generation in each hour of 2021
+#' #   in Florida.
+#' avert_out <- avert(
+#'   hourly_load_reduction = rep(100, 8760),
+#'   project_year = 2021,
+#'   project_region = "Florida",
+#'   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+#'   avertr_rdf_filepath = "./avertr_rdfs/2021/avertr_rdf_Florida_2021.rds"
+#'  )
+#'
+#'  # You can summarize across all the "data_" columns to get the annual results
+#'  avert_out |>
+#'    purrr::pluck("differences_final") |>
+#'    dplyr::summarize(dplyr::across(dplyr::starts_with("data_"), sum))
+#' }
 avert <- function(hourly_load_reduction, project_year, project_region,
                   avertr_rdf_filepath, avert_main_module_filepath) {
   # DEFINE/LOAD OBJECTS ######
