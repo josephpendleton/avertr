@@ -2,13 +2,36 @@
 % Please edit documentation in R/avertr_test.R
 \name{test_hourly}
 \alias{test_hourly}
-\title{Title}
+\title{Test avertr results against AVERT results (hourly level)}
 \usage{
 test_hourly(avertr_results, avert_run_filepath)
 }
 \arguments{
-\item{avert_run_filepath}{}
+\item{avertr_results}{The output from an \code{\link[=avert]{avert()}} run.}
+
+\item{avert_run_filepath}{A string giving a filepath to a finalized AVERT
+run which has been saved as a .xlsx file.}
 }
 \description{
-Title
+\code{test_annual()} takes an avertr run and an AVERT run and returns information
+about the differences between the two at the hourly level. It can be used to
+verify that, with the same inputs, avertr and AVERT produce results which
+differ only negligibly.
+}
+\details{
+\code{test_annual()} checks for differences at the hourly level, meaning that checks
+for differences between avertr and AVERT in each hour of the year.
+}
+\examples{
+\dontrun{
+avert_out <- avert(
+  hourly_load_reduction = rep(100, 8760),
+  project_year = 2021,
+  project_region = "Florida",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2021/avertr_rdf_Florida_2021.rds"
+)
+
+test_hourly(avert_out, "./test_scenarios/100MW_flat_reduction_Florida_2021.xlsx")
+}
 }

@@ -2,13 +2,65 @@
 % Please edit documentation in R/avertr_test.R
 \name{test_annual}
 \alias{test_annual}
-\title{Title}
+\title{Test avertr results against AVERT results (annual level)}
 \usage{
 test_annual(avertr_results, avert_run_filepath)
 }
 \arguments{
-\item{avert_run_filepath}{}
+\item{avertr_results}{The output from an \code{\link[=avert]{avert()}} run.}
+
+\item{avert_run_filepath}{A string giving a filepath to a finalized AVERT
+run which has been saved as a .xlsx file.}
+}
+\value{
+A list with at least three (possibly four) elements:
+\enumerate{
+\item \code{error_summary_region}, a one-row tibble containing the difference
+and percent difference between the avertr results and AVERT results
+at the region-level (i.e., summed up across all individual generating
+units.)
+\item \code{error_summary_table_egu}, a table giving summaries of the difference
+and percent difference between the avertr results and AVERT results,
+where the summaries range across different generating units. E.g., if
+the "Mean" value for pm25_error is -0.0004137, that means that across
+all generating units in the region, the average difference between
+that unit's PM2.5 change in avertr and its PM2.5 change in AVERT is
+-0.0004137 (lbs).
+\item \code{largest_absolute_errors_egu}, a tibble where each value is the largest
+absolute value error (or absolute value percent error) across all
+generating units in the region. E.g., if pct_nox_error is 0.12, that
+means that the generating unit with the largest absolute value percent
+error between avertr's and AVERT's reported NOx changes had a NOx
+value that was 0.12\% different between avertr and AVERT.
+\item (Possibly) \code{absolute_pct_errors_above_01_egu}, a tibble containing all
+generating units which have an absolute value percent error greater
+than 0.1\% forat least one of their "data_" columns. If there are no
+such units, this table is not returned, and the list only has three
+elements.
+}
 }
 \description{
-Title
+\code{test_annual()} takes an avertr run and an AVERT run and returns information
+about the differences between the two at the annual level. It can be used to
+verify that, with the same inputs, avertr and AVERT produce results which
+differ only negligibly.
+}
+\details{
+test_annual() checks for differences at the annual level, meaning that it sums
+changes in emissions (and generation and heat input) across all hours of
+the year. It checks for differences both at the regional (across all
+generating units) level and at the generating unit level.
+}
+\examples{
+\dontrun{
+avert_out <- avert(
+  hourly_load_reduction = rep(100, 8760),
+  project_year = 2021,
+  project_region = "Florida",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2021/avertr_rdf_Florida_2021.rds"
+)
+
+test_annual(avert_out, "./test_scenarios/100MW_flat_reduction_Florida_2021.xlsx")
+}
 }

@@ -13,12 +13,12 @@ from power plants as a result of changes in electricity generation or
 demand. avertr is an R package designed to allow a user to run AVERT in
 R.
 
-**avertr is directly based on the EPA’s AVERT, but it is not a product
-of the EPA or affiliated with the EPA in any way.**
+avertr is directly based on the EPA’s AVERT, but it is not a product of
+the EPA or affiliated with the EPA in any way.
 
-Use of avertr assumes familiarity with AVERT, so if you haven’t heard of
-AVERT before please see the [EPA’s resources](https://www.epa.gov/avert)
-first.
+Use of avertr assumes familiarity with AVERT. For more on AVERT, please
+see the [EPA’s resources](https://www.epa.gov/avert), especially the
+[AVERT User Manual](https://www.epa.gov/avert/avert-user-manual).
 
 avertr reflects AVERT v4.3 (the most recent). It gives results which are
 nearly-identical to those produced by AVERT, and only differ trivially
@@ -170,10 +170,8 @@ avert(
 
 - It’s faster than AVERT’s Excel Edition and (seemingly often) faster
   than the Web Edition — running a scenario in avertr generally takes
-  15-45 seconds
-
-  - This makes it much easier to play around with the tool and to run
-    large numbers of scenarios
+  15-45 seconds. This makes it feasible to run large numbers of
+  scenarios.
 
 ### Things avertr can’t do
 
@@ -195,7 +193,7 @@ An assortment of other things to keep in mind when using avertr:
 
 - avertr works, but it is still very much a work in progress. There’s
   lots of functionality I hope to add soon which will make avertr more
-  powerful and user-friendly
+  powerful and user-friendly.
 
 - I have only tested avertr on macOS
 
