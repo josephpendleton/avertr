@@ -1,11 +1,3 @@
-# A script to test avertr results against AVERT results. avertr_test_annual()
-#   compares annual results for each EGU and regionwide between avertr and AVERT.
-#   avertr_test_hourly() compares the change in emissions (and generation and
-#   heat input) for each EGU, for each hour, between avertr and AVERT. It takes
-#   longer to run. avertr_results is a list returned by an avertr run.
-#   avert_run_filepath is the string of a filepath to an AVERT main module where
-#   a scenario has been run, *saved as a .xlsx file*.
-
 #' Test avertr results against AVERT results (annual level)
 #'
 #' `test_annual()` takes an avertr run and an AVERT run and returns information
@@ -34,15 +26,15 @@
 #'        all generating units in the region, the average difference between
 #'        that unit's PM2.5 change in avertr and its PM2.5 change in AVERT is
 #'        -0.0004137 (lbs).
-#'    3.  `largest_absolute_errors_egu`, a tibble where each value is the largest
-#'        absolute value error (or absolute value percent error) across all
-#'        generating units in the region. E.g., if pct_nox_error is 0.12, that
-#'        means that the generating unit with the largest absolute value percent
+#'    3.  `largest_absolute_errors_egu`, a one-row tibble where each value is
+#'        the largest absolute value error (or absolute value percent error)
+#'        across all generating units in the region. E.g., if pct_nox_error is
+#'        0.12, that means that the generating unit with the largest absolute
 #'        error between avertr's and AVERT's reported NOx changes had a NOx
-#'        value that was 0.12% different between avertr and AVERT.
+#'        value percent value that was 0.12% different between avertr and AVERT.
 #'    4.  (Possibly) `absolute_pct_errors_above_01_egu`, a tibble containing all
 #'        generating units which have an absolute value percent error greater
-#'        than 0.1% forat least one of their "data_" columns. If there are no
+#'        than 0.1% for at least one of their "`data_`" columns. If there are no
 #'        such units, this table is not returned, and the list only has three
 #'        elements.
 #'
@@ -241,19 +233,40 @@ test_annual <- function(avertr_results, avert_run_filepath) {
 
 #' Test avertr results against AVERT results (hourly level)
 #'
-#' `test_annual()` takes an avertr run and an AVERT run and returns information
+#' `test_hourly()` takes an avertr run and an AVERT run and returns information
 #' about the differences between the two at the hourly level. It can be used to
 #' verify that, with the same inputs, avertr and AVERT produce results which
 #' differ only negligibly.
 #'
-#' `test_annual()` checks for differences at the hourly level, meaning that checks
-#' for differences between avertr and AVERT in each hour of the year.
+#' `test_hourly()` checks for differences at the hourly level, meaning that checks
+#' for differences between avertr and AVERT in each hour of the year, for each
+#' generating unit.
 #'
 #' @param avertr_results The output from an [avert()] run.
 #' @param avert_run_filepath A string giving a filepath to a finalized AVERT
 #' run which has been saved as a .xlsx file.
 #'
-#' @returns
+#' @returns A list with at least two (possibly three) elements:
+#'    1. `error_summary_table_hourly`, a table giving summaries of the
+#'        difference and percent difference between the avertr results and AVERT
+#'        where the summaries range across different generating unit-hours. A
+#'        generating unit-hour is a given generating unit in a given hour. So
+#'        if there are N generating units there will be 8760 * N generating-unit
+#'        hours (in a non-leap year). E.g., if the "Mean" value for pm25_error
+#'        is -0.0004137, that means that across all generating unit-hours in the
+#'        region, the average difference between that unit's PM2.5 change in
+#'        avertr and its PM2.5 change in AVERT is -0.0004137 (lbs).
+#'    2. `largest_absolute_errors_hourly`, a one-row tibble where each value is
+#'        the largest absolute value error (or absolute value percent error)
+#'        across all generating units-hours in the region. E.g., if pct_nox_error
+#'        is 0.12, that  means that the generating unit-hour with the largest
+#'        absolute value percent error between avertr's and AVERT's reported NOx
+#'        changes had a NOx value that was 0.12% different between avertr and AVERT.
+#'    3.  (Possibly) `absolute_pct_errors_above_001_hourly`, a tibble containing all
+#'        generating unit-hours which have an absolute value percent error greater
+#'        than 0.1% for at least one of their "`data_`" columns. If there are no
+#'        such generating unit-hours, this table is not returned, and the list
+#'        only has two elements.
 #' @export
 #'
 #' @examples

@@ -26,15 +26,15 @@ the "Mean" value for pm25_error is -0.0004137, that means that across
 all generating units in the region, the average difference between
 that unit's PM2.5 change in avertr and its PM2.5 change in AVERT is
 -0.0004137 (lbs).
-\item \code{largest_absolute_errors_egu}, a tibble where each value is the largest
-absolute value error (or absolute value percent error) across all
-generating units in the region. E.g., if pct_nox_error is 0.12, that
-means that the generating unit with the largest absolute value percent
+\item \code{largest_absolute_errors_egu}, a one-row tibble where each value is
+the largest absolute value error (or absolute value percent error)
+across all generating units in the region. E.g., if pct_nox_error is
+0.12, that means that the generating unit with the largest absolute
 error between avertr's and AVERT's reported NOx changes had a NOx
-value that was 0.12\% different between avertr and AVERT.
+value percent value that was 0.12\% different between avertr and AVERT.
 \item (Possibly) \code{absolute_pct_errors_above_01_egu}, a tibble containing all
 generating units which have an absolute value percent error greater
-than 0.1\% forat least one of their "data_" columns. If there are no
+than 0.1\% for at least one of their "\code{data_}" columns. If there are no
 such units, this table is not returned, and the list only has three
 elements.
 }
