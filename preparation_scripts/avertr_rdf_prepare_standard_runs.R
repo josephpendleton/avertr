@@ -1,5 +1,5 @@
-# A script to generate the "standard" avertr RDFs using prepare_rdfs()
-# Runs 2017 through 2023
+# A script to generate the standard avertr RDFs using prepare_rdfs()
+# Runs 2017 through 2023 for all 14 regions each year
 # Assumes:
 #   1. You're running from a working directory which contains a directory
 #   named regional_data_files
@@ -44,7 +44,8 @@ avertr_rdf_inputs <- tibble::tibble(
 )
 
 # A function to run prepare_rdfs(), save the results, and then remove the list.
-#   Necessary because we'd run out of memory otherwise.
+#   Necessary to remove at the end of each prepare_rdfs() call because we'd run
+#   out of memory otherwise.
 prepare_save_rm_rdfs <- function(rdf_name_vector, rdfs_year) {
 
   # Run prepare_rdfs()

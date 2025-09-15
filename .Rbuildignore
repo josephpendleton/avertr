@@ -13,3 +13,4 @@
 ^avertr_rdf_prepare_standard_runs\.R$
 ^LICENSE\.md$
 ^README\.Rmd$
+^\./preparation_scripts$
