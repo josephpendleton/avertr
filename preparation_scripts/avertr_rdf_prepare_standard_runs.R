@@ -14,6 +14,9 @@
 #   the 2020 Southwest RDF, since EPA has (I think mistakenly) left it out of
 #   the 2020 RDFs zip file, and it may download with a different name.)
 
+# LAST RAN: 09/17/2025 to generate avertr RDFs for the first public version of
+#   avertr. Ran at commit 145555d34e83ede154a6245676e23c204fba7547.
+
 library(avertr)
 
 # Create the top-level directory for storing the rdfs, if it doesn't exist

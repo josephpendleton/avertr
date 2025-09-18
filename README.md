@@ -43,7 +43,7 @@ required to run avertr:
     data files (one per region) for each year. You only need the files
     for the region(s) and year(s) that you are interested in running
     scenarios for. You can download the avertr regional data files from
-    **here**.
+    [here](https://hu-my.sharepoint.com/:f:/g/personal/josephpendleton_hsph_harvard_edu/EmqeRAk_SMNJjOwcBaGF1cYBPhvXHcjbmbpopRR5Oif-7Q).
     1.  Alternatively, `prepare_rdfs()` allows you to generate the
         avertr regional data files locally from the original AVERT
         regional data files, although I expect most users won’t have
