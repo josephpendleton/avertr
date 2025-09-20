@@ -10,8 +10,7 @@
 [AVERT](https://www.epa.gov/avert) is a tool managed by the U.S.
 Environmental Protection Agency (EPA) which models changes in emissions
 from power plants as a result of changes in electricity generation or
-demand. avertr is an R package designed to allow a user to run AVERT in
-R.
+demand. avertr is an R package which allows a user to run AVERT in R.
 
 avertr is directly based on the EPA’s AVERT, but it is not a product of
 the EPA or affiliated with the EPA in any way.
@@ -20,9 +19,9 @@ Use of avertr assumes familiarity with AVERT. For more on AVERT, please
 see the [EPA’s resources](https://www.epa.gov/avert), especially the
 [AVERT User Manual](https://www.epa.gov/avert/avert-user-manual).
 
-avertr reflects AVERT v4.3 (the most recent). It gives results which are
-nearly-identical to those produced by AVERT, and only differ trivially
-due to internal rounding differences.
+avertr reflects AVERT v4.3. It gives results which are nearly identical
+to those produced by AVERT, and only differ trivially due to internal
+rounding differences.
 
 ## Installation
 
@@ -35,8 +34,8 @@ pak::pak("josephpendleton/avertr")
 
 ## Set Up
 
-Besides installing and attaching the package, there are two setup steps
-required to run avertr:
+Besides installing and attaching the package, there are two steps
+required to use avertr:
 
 1.  Download the avertr regional data files (processed versions of
     AVERT’s regional data files). Like in AVERT, there are 14 regional
@@ -49,8 +48,8 @@ required to run avertr:
         regional data files, although I expect most users won’t have
         reason to do this.
 2.  Download the AVERT Main Module v4.3 from [the EPA’s
-    website](https://www.epa.gov/avert/download-avert) and save it as a
-    .xlsx file. It will download as a .xlsb file by default.
+    website](https://www.epa.gov/avert/download-avert#Main) and save it
+    as a .xlsx file. It will download as a .xlsb file by default.
 
 ## Requirements
 
@@ -61,14 +60,14 @@ about 4 GB.[^1] Your computer must have 16 GB of RAM.
 
 With avertr, you use `avert()` to model the emissions (and generation
 and heat input) changes associated with a change in hourly generation
-within a given region in a given year. avert() takes an 8760-length (or,
-in a leap year, 8784-length) vector representing the hourly MW reduction
-fossil-fuel generation.
+within a given region in a given year. `avert()` takes an 8760-length
+(or, in a leap year, 8784-length) vector representing the hourly MW
+reduction fossil-fuel generation.
 
 ``` r
 # Not run
 
-# To model a 100 MW reduction in fossil-fuel generation in each hour of 2023
+# To model a 100 MW reduction in fossil-fuel generation in each hour in 2023
 #   in New England
 
 avert(
@@ -80,8 +79,8 @@ avert(
 )
 ```
 
-Instead of manually specifying the 8760 (or 8784) vector, as above,
-`generate_reduction()` can be used to it based on renewable energy or
+Instead of manually specifying the 8760 (or 8784) vector, you can use
+`generate_reduction()` to generate it based on renewable energy and/or
 energy efficiency projects.
 
 ``` r
@@ -130,20 +129,21 @@ generate_and_avert(
 )
 ```
 
-You can also apply transmission and distribution losses to a vector with
-`adjust_reduction()`. This is useful for, e.g., modeling an energy
-efficiency program which will decrease demand by 10 MW each hour, since
-a 10 MW decrease in demand will lead to an even greater decrease in
-generation because generators must supply 10 MW *plus* whatever is lost
-in transmission and distribution. Since the vector we pass to `avert()`
-represents reduction in generation, we need to scale the 10 MW up by the
-given region and year’s transmission and distribution loss.
+You can also apply transmission and distribution losses to an 8760 (or
+8784) vector with `adjust_reduction()`. This is useful for, e.g.,
+modeling an energy efficiency program which will decrease demand by 10
+MW in each hour, since a 10 MW decrease in demand will lead to an even
+greater decrease in generation because generators normally must generate
+10 MW *plus* whatever is lost in transmission and distribution. Since
+the vector we pass to `avert()` represents reduction in generation, not
+demand, we need to scale the 10 MW up by the region-and-year-specific
+transmission and distribution loss factor.
 
 ``` r
 # Not run
 
 # To model an energy efficiency program which reduces demand by 10 MW in each
-#   hour of 2023 in Midwest
+#   hour in 2023 in the Midwest
 
 decrease_in_demand <- rep(10, 8760)
 
@@ -193,15 +193,15 @@ An assortment of other things to keep in mind when using avertr:
 
 - avertr works, but it is still very much a work in progress. There’s
   lots of functionality I hope to add soon which will make avertr more
-  powerful and user-friendly.
+  comprehensive and user-friendly.
 
 - I have only tested avertr on macOS
 
-- If you’re downloading the AVERT regional data files for 2020, note
-  that the Southwest regional data file is not included in the 2020
-  folder on the EPA’s current website. To generate the Southwest 2020
-  avertr regional data file I downloaded the Southwest 2020 AVERT
-  regional data file from [this Wayback Machine
+- If you’re downloading the AVERT regional data files for 2020: the
+  Southwest regional data file is not included in the 2020 folder on
+  [the EPA’s current website](https://www.epa.gov/avert/download-avert).
+  To generate the Southwest 2020 avertr regional data file I downloaded
+  the Southwest 2020 AVERT regional data file from [this Wayback Machine
   page](https://web.archive.org/web/20220324082548/https://www.epa.gov/avert/download-avert).
   (Note that the naming format of that file is different from the
   default names of the other 2020 AVERT regional data files on the

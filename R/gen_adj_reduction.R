@@ -12,15 +12,15 @@
 #'
 #' `apply_reduction_top_x_pct_hours` and `reduce_x_pct_in_top_hours` work together.
 #' They must both be specified in order to have an effect. Only passing a value
-#' to one of them does.
+#' to one of them does nothing.
 #'
 #' Values for `rooftop_solar_pv_capacity_mw` are automatically scaled up to
-#' account for transmission and distribution losses. Similarly values passed to
+#' account for transmission and distribution losses. Similarly, values passed to
 #' `apply_reduction_top_x_pct_hours`/`reduce_x_pct_in_top_hours`,
 #' `reduce_annual_generation_by_x_gwh`, and/or `reduce_each_hour_by_x_mw` are
 #' expected to be demand-side values, and thus are scaled up to account for
 #' transmission and distribution losses. See [adjust_reduction()] for more
-#' information.
+#' information on the arguments.
 #'
 #' The structure of this function largely mirrors the structure of AVERT's Main
 #' Module, so see the AVERT User Manual for additional information.
@@ -37,8 +37,8 @@
 #' @param reduce_x_pct_in_top_hours A number from 0 to 100 giving the percent
 #' reduction in load that should occur in the top X% of hours, where X is
 #' specified with `apply_reduction_top_x_pct_hours`.
-#' @param reduce_annual_generation_by_x_gwh A number giving the total number of
-#' GWh by which to reduce annual load. The reduction is spread out evenly across
+#' @param reduce_annual_generation_by_x_gwh A number giving the total GWh by
+#' which to reduce annual generation. The reduction is spread out evenly across
 #' all hours of the year.
 #' @param reduce_each_hour_by_x_mw A number giving the MW by which to reduce
 #' load in each hour.
@@ -52,8 +52,8 @@
 #' to be deployed.
 #'
 #' @returns An 8760-length (or, in a leap year, 8784-length) numeric vector
-#' giving the hourly MW reduction before adjustment for transmission and
-#' distribution losses.
+#' giving the hourly MW reduction resulting from the changes specified in the
+#' arguments. Can be passed to [avert()].
 #' @export
 #' @examples
 #' \dontrun{
