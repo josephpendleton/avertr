@@ -39,8 +39,8 @@ X\% percent of hours in which to reduce load by the amount specified with
 reduction in load that should occur in the top X\% of hours, where X is
 specified with \code{apply_reduction_top_x_pct_hours}.}
 
-\item{reduce_annual_generation_by_x_gwh}{A number giving the total number of
-GWh by which to reduce annual load. The reduction is spread out evenly across
+\item{reduce_annual_generation_by_x_gwh}{A number giving the total GWh by
+which to reduce annual generation. The reduction is spread out evenly across
 all hours of the year.}
 
 \item{reduce_each_hour_by_x_mw}{A number giving the MW by which to reduce
@@ -60,8 +60,8 @@ to be deployed.}
 }
 \value{
 An 8760-length (or, in a leap year, 8784-length) numeric vector
-giving the hourly MW reduction before adjustment for transmission and
-distribution losses.
+giving the hourly MW reduction resulting from the changes specified in the
+arguments. Can be passed to \code{\link[=avert]{avert()}}.
 }
 \description{
 \code{generate_reduction()} generates an 8760-length (or, in a leap year,
@@ -77,15 +77,15 @@ deploying 80 MW of utility-scale solar.
 
 \code{apply_reduction_top_x_pct_hours} and \code{reduce_x_pct_in_top_hours} work together.
 They must both be specified in order to have an effect. Only passing a value
-to one of them does.
+to one of them does nothing.
 
 Values for \code{rooftop_solar_pv_capacity_mw} are automatically scaled up to
-account for transmission and distribution losses. Similarly values passed to
+account for transmission and distribution losses. Similarly, values passed to
 \code{apply_reduction_top_x_pct_hours}/\code{reduce_x_pct_in_top_hours},
 \code{reduce_annual_generation_by_x_gwh}, and/or \code{reduce_each_hour_by_x_mw} are
 expected to be demand-side values, and thus are scaled up to account for
 transmission and distribution losses. See \code{\link[=adjust_reduction]{adjust_reduction()}} for more
-information.
+information on the arguments.
 
 The structure of this function largely mirrors the structure of AVERT's Main
 Module, so see the AVERT User Manual for additional information.

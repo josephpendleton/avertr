@@ -17,22 +17,24 @@ A list with three elements:
 units, the tibble will have N * 8760 rows. Each row contains the changes
 in emissions (and generation and heat input) associated with a given
 fossil-fuel generating unit in a given hour. Those changes appear in
-the columns with a "data_" prefix. The other columns given additional
+the columns with a "data_" prefix. The other columns give additional
 information on the generating unit and the fossil-fuel load bin.
 \item \code{signal_to_noise}, a two-element list containing A. the linear
 regression coefficients which result from regressing the generation
 change calculated by avertr onto the input generation change, and
-B. the r squared statistic from same regression.
+B. the r-squared statistic from same regression.
 \item \code{pct_hourly_load_reduction}, an 8760-length (or, in a leap year,
 8784-length) numeric vector where each value represents the percent
 reduction in generation compared to the business-as-usual scenario.
-Presented as numbers ranging from 0 to 1. E.g., 0.028 would represent
-a 2.8\% decrease in generation. AVERT suggests caution when modeling
-a scenario where any given hour has a >15\% change in generation.
+These values are presented as numbers ranging from 0 to 1. (E.g., 0.028
+would represent a 2.8\% decrease in generation.) Negative values
+represent increases in generation. AVERT suggests caution when
+modeling a scenario where any given hour has a >15\% change in
+generation.
 }
 }
 \description{
-\code{generate_and_avert()} is a wrapper function that generates an hourly
+\code{generate_and_avert()} is a wrapper function which generates an hourly
 load reduction vector with \code{\link[=generate_reduction]{generate_reduction()}} and then runs
 an AVERT scenario with \code{\link[=avert]{avert()}}, all in one step. It's more convenient
 than running the two functions separately, especially because there's no
