@@ -1,9 +1,13 @@
 Package: avertr
-Title: What the Package Does (One Line, Title Case)
+Title: Runs the EPA's AVERT in R
 Version: 0.0.0.9000
 Authors@R: 
-    person("Joseph", "Pendleton", , "josphp024@gmail.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    person("Joseph", "Pendleton", "118632435+josephpendleton@users.noreply.github.com", role = c("aut", "cre"))
+Description: AVERT is a tool managed by the U.S. Environmental Protection Agency
+(EPA) which models changes in emissions from power plants as a result of changes
+in electricity generation or demand. avertr is an R package which allows a user
+to run AVERT in R. avertr is directly based on the EPA’s AVERT, but it is not a
+product of the EPA or affiliated with the EPA in any way.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
