@@ -58,6 +58,8 @@ about 4 GB.[^1] Your computer must have 16 GB of RAM.
 
 ## Examples
 
+### Running AVERT scenarios
+
 With avertr, you use `avert()` to model the emissions (and generation
 and heat input) changes associated with a change in hourly generation
 within a given region in a given year. `avert()` takes an 8760-length
@@ -162,6 +164,31 @@ avert(
 )
 ```
 
+### Testing against AVERT results
+
+You can use `test_annual()` and `test_hourly()` to verify that results
+from avertr match results from AVERT. Expect trivial differences between
+avertr and AVERT results due to rounding.
+
+``` r
+# Not run
+
+# To model deploying 33 MW utility-scale solar capacity on top of reducing 
+#   generation by 10% in the top 5% of hours in 2019 in Texas
+
+avert_tx_33_upv <- generate_and_avert(
+  utility_solar_pv_capacity_mw = 200,
+  project_year = 2019,
+  project_region = "Texas",
+  avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
+  avertr_rdf_filepath = "./avertr_rdfs/2019/avertr_rdf_Texas_2023.rds"
+)
+
+test_annual(avert_tx_33_upv, "./AVERT_results/33MW_UPV_TX_061025.xlsx")
+
+test_hourly(avert_tx_33_upv, "./AVERT_results/33MW_UPV_TX_061025.xlsx")
+```
+
 ## More on avertr
 
 ### Why use avertr?
@@ -175,7 +202,7 @@ avert(
 
 ### Things avertr can’t do
 
-Here are some notable things that AVERT can do which haven’t (yet!) been
+Here are some notable things AVERT can do which haven’t (yet!) been
 incorporated into avertr:
 
 - Run scenarios with electric vehicles
@@ -187,25 +214,14 @@ incorporated into avertr:
 
 - Generate COBRA and SMOKE text files
 
-### Other notes
+### Closing note
 
-An assortment of other things to keep in mind when using avertr:
-
-- avertr works, but it is still very much a work in progress. There’s
-  lots of functionality I hope to add soon which will make avertr more
-  comprehensive and user-friendly.
-
-- I have only tested avertr on macOS
-
-- If you’re downloading the AVERT regional data files for 2020: the
-  Southwest regional data file is not included in the 2020 folder on
-  [the EPA’s current website](https://www.epa.gov/avert/download-avert).
-  To generate the Southwest 2020 avertr regional data file I downloaded
-  the Southwest 2020 AVERT regional data file from [this Wayback Machine
-  page](https://web.archive.org/web/20220324082548/https://www.epa.gov/avert/download-avert).
-  (Note that the naming format of that file is different from the
-  default names of the other 2020 AVERT regional data files on the
-  current EPA website.)
+avertr works, but it is still *very* much a work in progress. There’s
+lots of functionality I hope to add soon which will make avertr more
+comprehensive and user-friendly. Please [create
+issues](https://github.com/josephpendleton/avertr/issues) or [ask
+questions](https://github.com/josephpendleton/avertr/discussions/categories/q-a)
+as needed.
 
 [^1]: This is because, unlike the AVERT regional data files, the avertr
     regional data files store a cached run of the business-as-usual
