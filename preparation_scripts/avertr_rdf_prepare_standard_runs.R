@@ -15,7 +15,7 @@
 #   the 2020 RDFs zip file, and it may download with a different name.)
 
 # LAST RAN: 09/17/2025 to generate avertr RDFs for the first public version of
-#   avertr. Ran at commit 145555d34e83ede154a6245676e23c204fba7547.
+#   avertr. Ran at commit ff5f89fd2180fe0c832c6a712fd884c3e3a5ea96.
 
 library(avertr)
 
