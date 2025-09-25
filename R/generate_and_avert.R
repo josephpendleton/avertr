@@ -65,6 +65,14 @@ generate_and_avert <- function(...) {
   # Get a list of arguments to be passed to generate_reduction()
   args_generate_reduction <- list(...)
 
+  # If not all arguments are named, stop
+  if (
+    is.null(names(args_generate_reduction)) |
+    any(names(args_generate_reduction) == "") > 0
+  ) {
+    stop("All arguments to generate_and_avert() must be named")
+  }
+
   # Select the subset of arguments which will also get passed to avert()
   args_avert <- args_generate_reduction[
     c(
