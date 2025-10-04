@@ -142,14 +142,13 @@ generate_reduction <- function(
   #   box. We skip Box 4 because avertr doesn't do EVs (...yet).
   ## Box 1: Enter EE based on the % reduction of regional fossil generation ======
   if (apply_reduction_top_x_pct_hours != 0 & reduce_x_pct_in_top_hours != 0) {
-    # The number of hours to apply the reduction in
-    number_of_top_hours <- round(yr_hrs * apply_reduction_top_x_pct_hours)
+
+    # The lowest hour in which we apply the reduction. (This calculation comes
+    #   sheet CalculateEERE in AVERT.)
+    lowest_hr_reduced <- quantile(bau_load_8760, 1 - apply_reduction_top_x_pct_hours)
 
     # The indices where the top hours are located
-    top_hour_indices <- bau_load_8760 |>
-      sort(decreasing = TRUE, index.return = TRUE) |>
-      purrr::pluck("ix") |>
-      (\(x) x[1:number_of_top_hours])()
+    top_hour_indices <- which(bau_load_8760 >= lowest_hr_reduced)
 
     # Get the appropriate hourly reductions for each hour
     hourly_load_reduction[top_hour_indices] <- bau_load_8760[top_hour_indices] * reduce_x_pct_in_top_hours
