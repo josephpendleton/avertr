@@ -25,7 +25,7 @@ avertr is directly based on the EPA's AVERT, but it is not a product of the EPA 
 
 Use of avertr assumes familiarity with AVERT. For more on AVERT, please see the [EPA's resources](https://www.epa.gov/avert), especially the [AVERT User Manual](https://www.epa.gov/avert/avert-user-manual).
 
-avertr reflects AVERT v4.3. It gives results which are nearly identical to those produced by AVERT, and only differ trivially due to internal rounding differences.
+avertr reflects AVERT v4.3. It gives results which are nearly identical to those produced by AVERT, and only differ trivially due to rounding differences.
 
 ## Installation
 
@@ -46,7 +46,7 @@ Besides installing and attaching the package, there are two steps required to us
 
 ## Requirements
 
-The 14 avertr regional data files for a single given year are together about 4 GB.[^1] Your computer must have 16 GB of RAM.
+The 14 avertr regional data files for a single given year are together about 4 GB.[^1] You must have 16 GB of RAM.
 
 [^1]: This is because, unlike the AVERT regional data files, the avertr regional data files store a cached run of the business-as-usual scenario. AVERT calculates this business-as-usual scenario on demand each time it is run, even though it is always the same for a given region and year. So the larger size of the avertr regional data files helps avertr run faster.
 

@@ -20,8 +20,8 @@ see the [EPA’s resources](https://www.epa.gov/avert), especially the
 [AVERT User Manual](https://www.epa.gov/avert/avert-user-manual).
 
 avertr reflects AVERT v4.3. It gives results which are nearly identical
-to those produced by AVERT, and only differ trivially due to internal
-rounding differences.
+to those produced by AVERT, and only differ trivially due to rounding
+differences.
 
 ## Installation
 
@@ -54,7 +54,7 @@ required to use avertr:
 ## Requirements
 
 The 14 avertr regional data files for a single given year are together
-about 4 GB.[^1] Your computer must have 16 GB of RAM.
+about 4 GB.[^1] You must have 16 GB of RAM.
 
 ## Examples
 
