@@ -156,11 +156,11 @@ You can use `test_annual()` and `test_hourly()` to verify that results from aver
 # To model deploying 33 MW utility-scale solar capacity in 2019 in Texas
 
 avert_tx_33_upv <- generate_and_avert(
-  utility_solar_pv_capacity_mw = 200,
+  utility_solar_pv_capacity_mw = 33,
   project_year = 2019,
   project_region = "Texas",
   avert_main_module_filepath = "./avert-main-module-v4.3.xlsx",
-  avertr_rdf_filepath = "./avertr_rdfs/2019/avertr_rdf_Texas_2023.rds"
+  avertr_rdf_filepath = "./avertr_rdfs/2019/avertr_rdf_Texas_2019.rds"
 )
 
 test_annual(avert_tx_33_upv, "./AVERT_results/33MW_UPV_TX_061025.xlsx")
