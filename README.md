@@ -173,8 +173,7 @@ avertr and AVERT results due to rounding.
 ``` r
 # Not run
 
-# To model deploying 33 MW utility-scale solar capacity on top of reducing 
-#   generation by 10% in the top 5% of hours in 2019 in Texas
+# To model deploying 33 MW utility-scale solar capacity in 2019 in Texas
 
 avert_tx_33_upv <- generate_and_avert(
   utility_solar_pv_capacity_mw = 200,
