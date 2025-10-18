@@ -31,7 +31,7 @@
 #'        across all generating units in the region. E.g., if `pct_nox_error` is
 #'        0.12, that means that the largest absolute-value percent difference
 #'        between avertr and AVERT's results for NOx, across all generating units,
-#'        is 0.12.
+#'        is 0.12%.
 #'    4.  (Possibly) `absolute_pct_errors_above_01_egu`, a tibble containing all
 #'        generating units which have an absolute-value percent error greater
 #'        than 0.1% for at least one of their "`data_`" columns. If there are no
@@ -249,24 +249,24 @@ test_annual <- function(avertr_results, avert_run_filepath) {
 #' @returns A list with at least two (possibly three) elements:
 #'    1. `error_summary_table_hourly`, a table giving summaries of the
 #'        difference and percent difference between the avertr results and AVERT
-#'        where the summaries range across different generating unit-hours. A
-#'        generating unit-hour is a given generating unit in a given hour. So
+#'        results, where the summaries range across different generating-unit-hours.
+#'        A generating-unit-hour is a given generating unit in a given hour. So
 #'        if there are N generating units there will be 8760 * N generating-unit
-#'        hours (in a non-leap year). E.g., if the "Mean" value for pm25_error
-#'        is -0.0004137, that means that across all generating unit-hours in the
+#'        hours (in a non-leap year). E.g., if the "Mean" value for `pm25_error`
+#'        is -0.0004137, that means that across all generating-unit-hours in the
 #'        region, the average difference between that unit's PM2.5 change in
 #'        avertr and its PM2.5 change in AVERT is -0.0004137 (lbs).
 #'    2. `largest_absolute_errors_hourly`, a one-row tibble where each value is
 #'        the largest absolute-value error (or absolute-value percent error)
-#'        across all generating units-hours in the region. E.g., if pct_nox_error
-#'        is 0.12, that  means that the generating unit-hour with the largest
-#'        absolute-value percent error between avertr's and AVERT's reported NOx
-#'        changes had a NOx value that was 0.12% different between avertr and AVERT.
-#'    3.  (Possibly) `absolute_pct_errors_above_001_hourly`, a tibble containing all
-#'        generating unit-hours which have an absolute-value percent error greater
-#'        than 0.1% for at least one of their "`data_`" columns. If there are no
-#'        such generating unit-hours, this table is not returned, and the list
-#'        only has two elements.
+#'        across all generating units-hours in the region. E.g., if `pct_nox_error`
+#'        is 0.12, that means that the largest absolute-value percent difference
+#'        between avertr and AVERT's results for NOx, across all generating-unit-hours,
+#'        is 0.12%.
+#'    3.  (Possibly) `absolute_errors_above_0001_hourly`, a tibble containing all
+#'        generating-unit-hours which have an absolute-value error greater than
+#'        0.001 for at least one of their "`data_`" columns. If there are no
+#'        such generating-unit-hours, this tibble is not returned, and the
+#'        returned list only has two elements.
 #' @export
 #'
 #' @examples
@@ -461,14 +461,14 @@ test_hourly <- function(avertr_results, avert_run_filepath) {
   #   found that there are many cases where the maximum error caps out at, e.g.,
   #   0.00100000000000011, which is only slightly above the rounding error of
   #   0.001 that we'd expect.
-  absolute_pct_errors_above_001_hourly <- test_errors_hourly |>
+  absolute_errors_above_0001_hourly <- test_errors_hourly |>
     dplyr::mutate(dplyr::across(dplyr::contains("error") & !dplyr::contains("pct"), abs)) |>
     dplyr::filter(dplyr::if_any(dplyr::contains("error") & !dplyr::contains("pct"), \(x) x > 0.001000001))
 
 
 
   # MESSAGE, COMBINE, AND RETURN #############
-  message(paste("There are", nrow(absolute_pct_errors_above_001_hourly), "cases where an EGU has a > 0.001 absolute error in a given hour for at least one of its data measures."))
+  message(paste("There are", nrow(absolute_errors_above_0001_hourly), "cases where an EGU has a > 0.001 absolute error in a given hour for at least one of its data measures."))
 
   hourly_test_results <- dplyr::lst(
     error_summary_table_hourly,
@@ -477,10 +477,10 @@ test_hourly <- function(avertr_results, avert_run_filepath) {
 
   # If there are with EGUS > 0.001 absolute error, add the table of such hours
   #   to the list to be returned
-  if (nrow(absolute_pct_errors_above_001_hourly) > 0) {
+  if (nrow(absolute_errors_above_0001_hourly) > 0) {
     hourly_test_results <- append(
       hourly_test_results,
-      dplyr::lst(absolute_pct_errors_above_001_hourly)
+      dplyr::lst(absolute_errors_above_0001_hourly)
     )
   }
 

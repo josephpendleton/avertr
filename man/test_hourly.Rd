@@ -17,24 +17,24 @@ A list with at least two (possibly three) elements:
 \enumerate{
 \item \code{error_summary_table_hourly}, a table giving summaries of the
 difference and percent difference between the avertr results and AVERT
-where the summaries range across different generating unit-hours. A
-generating unit-hour is a given generating unit in a given hour. So
+results, where the summaries range across different generating-unit-hours.
+A generating-unit-hour is a given generating unit in a given hour. So
 if there are N generating units there will be 8760 * N generating-unit
-hours (in a non-leap year). E.g., if the "Mean" value for pm25_error
-is -0.0004137, that means that across all generating unit-hours in the
+hours (in a non-leap year). E.g., if the "Mean" value for \code{pm25_error}
+is -0.0004137, that means that across all generating-unit-hours in the
 region, the average difference between that unit's PM2.5 change in
 avertr and its PM2.5 change in AVERT is -0.0004137 (lbs).
 \item \code{largest_absolute_errors_hourly}, a one-row tibble where each value is
-the largest absolute value error (or absolute value percent error)
-across all generating units-hours in the region. E.g., if pct_nox_error
-is 0.12, that  means that the generating unit-hour with the largest
-absolute value percent error between avertr's and AVERT's reported NOx
-changes had a NOx value that was 0.12\% different between avertr and AVERT.
-\item (Possibly) \code{absolute_pct_errors_above_001_hourly}, a tibble containing all
-generating unit-hours which have an absolute value percent error greater
-than 0.1\% for at least one of their "\code{data_}" columns. If there are no
-such generating unit-hours, this table is not returned, and the list
-only has two elements.
+the largest absolute-value error (or absolute-value percent error)
+across all generating units-hours in the region. E.g., if \code{pct_nox_error}
+is 0.12, that means that the largest absolute-value percent difference
+between avertr and AVERT's results for NOx, across all generating-unit-hours,
+is 0.12\%.
+\item (Possibly) \code{absolute_errors_above_0001_hourly}, a tibble containing all
+generating-unit-hours which have an absolute-value error greater than
+0.001 for at least one of their "\code{data_}" columns. If there are no
+such generating-unit-hours, this tibble is not returned, and the
+returned list only has two elements.
 }
 }
 \description{
