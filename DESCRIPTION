@@ -1,6 +1,6 @@
 Package: avertr
 Title: Runs the EPA's AVERT in R
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: 
     person("Joseph", "Pendleton", , "118632435+josephpendleton@users.noreply.github.com", role = c("aut", "cre"))
 Description: AVERT is a tool managed by the U.S. Environmental Protection
