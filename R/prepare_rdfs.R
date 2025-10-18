@@ -42,6 +42,8 @@
 #'
 #' @examples
 #' \dontrun{
+#' # To generate all 14 avertr regional data files for 2021
+#'
 #' # Create vector of names for the regional data files
 #' region_names <- c("California", "Carolinas", "Central", "Florida", "Mid-Atlantic",
 #' "Midwest", "New England", "New York", "Northwest", "Rocky Mountains",
@@ -59,7 +61,8 @@
 #'   avertr_rdf_list,
 #'   ~ readr::write_rds(
 #'     .x,
-#'     file.path(".", paste0("avertr_rdf_", .y, "_", rdfs_year, ".rds")))
+#'     file.path(".", paste0("avertr_rdf_", .y, "_", 2021, ".rds"))
+#'   )
 #' )
 #' }
 #'
