@@ -1,15 +1,20 @@
 #' Prepare avertr regional data files
 #'
-#' `prepare_rdfs()` prepares avertr regional data files from AVERT regional data
+#' `prepare_rdfs()` creates avertr regional data files using AVERT regional data
 #' files. Most users will not need to run `prepare_rdfs()` and can instead
 #' directly download and use the avertr regional data files.
 #'
-#' avertr regional data files are required to run avertr. They have the same
-#' content as AVERT regional data files. The main difference is that avertr
-#' regional data files have been processed so that they can be easily used in
-#' avertr.
+#' avertr regional data files are required to run avertr. They essentially have
+#' the same content as AVERT regional data files. The main differences are
+#' 1. avertr regional data files have been processed so that they can be easily
+#' used in avertr and 2. avertr regional data files store a run of the
+#' business-as-usual scenario for the region and year, which prevents avertr
+#' from having to re-generate the results for the business-as-usual scenario
+#' each time it runs.
 #'
-#' You can download the AVERT regional data files from the EPA's website.
+#' You can download the AVERT regional data files from the EPA's website. If any
+#' of the files have hidden columns, [tidyxl::xlsx_cells()] breaks, so you may
+#' need to manually unhide all columns in some of the files.
 #'
 #' Note that the 14 avertr regional data files for a single given year are
 #' together about 4 GB.
@@ -17,29 +22,31 @@
 #' @param rdf_directory_filepath A string giving the filepath to a directory
 #' containing all (and only) a set of AVERT regional data files for a given year.
 #' Within the directory the files must all come from the same year. But you do
-#' not need to include all 14 files for the year. If any of the files have
-#' hidden columns tidyxl::xlsx_cells() breaks, so you may need to manually
-#' all columns in some of the files.
+#' not need to include all 14 files for the year.
 #' @param rdf_name_vector A character vector which has the same length as the
 #' number of files in the directory given by `rdf_directory_filepath`. This
 #' vector will be used to name each element in the returned list. The order of
-#' strings must match the order of filenames in the directory when they're read
-#' into R with [list.files()]. This should be alphabetical order. So, e.g., if
-#' the directory contains AVERT regional data files named B.xlsx, A.xlsx, and
-#' C.xlsx, and you want to name them "rdf1", "rdf2", and "rdf3" respectively. By
-#' default, the AVERT regional data file filenames should be identical within a
-#' given year, except for the region, and thus they are alphabetical by region.
+#' strings must match the order of filenames from the directory when they're read
+#' into R with [list.files()]. [list.files()] returns a vector of the filenames
+#' in alphabetical order. So, e.g., if the directory contains AVERT regional
+#' data files named B.xlsx, A.xlsx, and C.xlsx, and you want to name them "rdf1",
+#' "rdf2", and "rdf3" respectively, pass the vector `c("rdf2", "rdf1", "rdf3")`.
 #' @param rdfs_year An integer giving the year of the regional data files.
 #'
 #' @returns A named list of elements, of the same length as the number of files
 #' in the directory given by `rdf_directory_filepath`, with the names coming
-#' from `rdf_name_vector`. Each element is itself a list of two objects. Each
-#' element of the list should be saved as a .rds file, after which it is
-#' officially an avertr regional data file, and can be used with avertr.
+#' from `rdf_name_vector`. Each element of the list should be saved as a .rds
+#' file, after which it is officially an avertr regional data file, and can be
+#' used with avertr.
 #' @export
 #'
 #' @examples
 #' \dontrun{
+#' # Create vector of names for the regional data files
+#' region_names <- c("California", "Carolinas", "Central", "Florida", "Mid-Atlantic",
+#' "Midwest", "New England", "New York", "Northwest", "Rocky Mountains",
+#' "Southeast", "Southwest", "Tennessee", "Texas")
+#'
 #' # Generate avertr regional data files
 #' avertr_rdf_list <- prepare_rdfs(
 #'   "./regional_data_files/2021",
