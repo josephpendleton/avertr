@@ -496,6 +496,10 @@ avert <- function(hourly_load_reduction, project_year, project_region,
       dplyr::mutate(
         data_so2 = dplyr::case_when(!is.na(egu_number) ~ 0, TRUE ~ data_so2)
       )
+
+    # Remove the egu_number column from differences_final
+    differences_final <- differences_final |>
+      dplyr::select(!egu_number)
   }
 
 
