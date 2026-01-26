@@ -94,7 +94,20 @@ generate_reduction <- function(
     onshore_wind_capacity_mw = 0,
     offshore_wind_capacity_mw = 0,
     utility_solar_pv_capacity_mw = 0,
-    rooftop_solar_pv_capacity_mw = 0
+    rooftop_solar_pv_capacity_mw = 0,
+
+    pair_solar_with_storage = TRUE,
+    utility_storage_capacity_mw = 0,
+    distributed_storage_capacity_mw = 0,
+    duration = 4,
+    charging_pattern = "midday",
+    manual_charging_vec = NULL,
+    apply_profile_weekdays = TRUE,
+    apply_profile_weekends = TRUE,
+    apply_profile_months = rep(TRUE, 12),
+    max_annual_discharge_cycles = 150,
+    round_trip_efficiency = 85,
+    depth_of_discharge = 80
 ) {
   # DEFINE/LOAD OBJECTS ######
 
@@ -107,10 +120,12 @@ generate_reduction <- function(
     yr_hrs <- 8760
   }
 
-  # Scale down the two percents entered by users, since they're assumed to be
+  # Scale down the percents values entered by users, since they're assumed to be
   #   0-100, but are more practically used here are fractions from 0 to 1.
   apply_reduction_top_x_pct_hours <- apply_reduction_top_x_pct_hours / 100
   reduce_x_pct_in_top_hours <- reduce_x_pct_in_top_hours / 100
+  round_trip_efficiency <- round_trip_efficiency / 100
+  depth_of_discharge <- depth_of_discharge / 100
 
   bau_case_ap_region <- readr::read_rds(avertr_rdf_filepath) |>
     purrr::pluck(paste0("bau_case_ap_", project_region))
@@ -269,6 +284,56 @@ generate_reduction <- function(
 
     # Add this to whatever load reduction user has already entered.
     hourly_load_reduction <- hourly_load_reduction + summed_renewables
+    }
+
+
+  ## Box 5: And/or enter energy storage data ======
+  if (utility_storage_capacity_mw != 0 |
+      distributed_storage_capacity_mw != 0) {
+    # Assign charging pattern based on user input
+    if (charging_pattern == "midday") {
+      charging_pattern_24h <- midday_charging_vec
+    } else if (charging_pattern == "overnight") {
+      charging_pattern_24h <- overnight_charging_vec
+    } else if (charging_pattern == "manual") {
+      charging_pattern_24h <- manual_charging_vec
+    }
+
+    # The number of charging hours
+    num_charge_hrs <- sum(charging_pattern_24h == "Charging")
+
+    # The number of discharging hours
+    num_discharge_hrs <- sum(charging_pattern_24h == "Discharging")
+
+    charging_tibble <- tibble(
+      hour = 1:24,
+      charging_indicator = charging_pattern_24h
+    ) |>
+      mutate(
+        charging_fraction = case_when(
+          charging_indicator == "Idle" ~ 0,
+          charging_indicator == "Charging" ~ (1 / num_charge_hrs),
+          charging_indicator == "Discharging" ~ (-1 * (round_trip_efficiency / num_discharge_hrs))
+        ),
+        daily_load_reduction_utility = case_when(
+          charging_indicator == "Idle" ~ 0,
+          charging_indicator == "Charging" ~ -1 * depth_of_discharge * utility_storage_capacity_mw,
+          charging_indicator == "Discharging" ~ round_trip_efficiency * depth_of_discharge * utility_storage_capacity_mw
+        ),
+        daily_load_reduction_distributed = case_when(
+          charging_indicator == "Idle" ~ 0,
+          charging_indicator == "Charging" ~ -1 * depth_of_discharge * distributed_storage_capacity_mw,
+          charging_indicator == "Discharging" ~ round_trip_efficiency * depth_of_discharge * distributed_storage_capacity_mw
+        ),
+        daily_load_reduction_both = daily_load_reduction_utility + (daily_load_reduction_distributed / (1 - t_and_d_loss_factor))
+      )
+
+    # Left off here, wanted to check results of this against load profile generated
+    #   by AVERT
+
+    # Allow for different durations (later, once you've confirmed that the
+    #   above works)
+
   }
   return(hourly_load_reduction)
 }
@@ -342,5 +407,62 @@ adjust_reduction <- function(
   return(adjusted_hourly_load_reduction)
 
 }
+
+
+
+# CHARGING PATTERN VECTORS ########
+midday_charging_vec <- c(
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Charging",
+  "Charging",
+  "Charging",
+  "Charging",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Discharging",
+  "Discharging",
+  "Discharging",
+  "Discharging",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle"
+)
+
+overnight_charging_vec <- c(
+  "Charging",
+  "Charging",
+  "Charging",
+  "Charging",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Discharging",
+  "Discharging",
+  "Discharging",
+  "Discharging",
+  "Idle",
+  "Idle",
+  "Idle",
+  "Idle"
+)
 
 
