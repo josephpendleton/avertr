@@ -130,7 +130,7 @@ generate_reduction <- function(
   bau_case_ap_region <- readr::read_rds(avertr_rdf_filepath) |>
     purrr::pluck(paste0("bau_case_ap_", project_region))
 
-  # Vector of each hour of the year 2023
+  # Vector of each hour of the year
   datetime_8760 <- seq(
     from = lubridate::ymd_hms(paste0(project_year, "-01-01 00:00:00")),
     by = "1 hour",
@@ -333,8 +333,57 @@ generate_reduction <- function(
         daily_load_reduction_both = daily_load_reduction_utility + (daily_load_reduction_distributed / (1 - t_and_d_loss_factor))
       )
 
+    # Now we perform the check to ensure that enough discharging hours have been
+    #   specified to allow for full discharging. Note that this is only a concern
+    #   if the user has specified their own manual_charging_vec.
+    if (!is.null(manual_charging_vec)) {
+      # The number of discharge hours
+      manual_discharge_hours_num <- sum(manual_charging_vec == "Discharging")
+
+      # The amount of utility energy to be discharged per day
+      utility_discharge_amount <- utility_storage_capacity_mw *
+        duration *
+        round_trip_efficiency *
+        depth_of_discharge
+
+      # Number of utility discharge hours required (dividing by capacity)
+      utility_discharge_hrs_required <- utility_discharge_amount /
+        utility_storage_capacity_mw
+
+      # If utility discharge hours required exceeds discharge hours, error
+      if (utility_discharge_hrs_required > manual_discharge_hours_num) {
+        stop("")
+      }
+
+      # The amount of distributed energy to be discharged per day
+      distributed_discharge_amount <- distributed_storage_capacity_mw *
+        duration *
+        round_trip_efficiency *
+        depth_of_discharge
+
+      # Number of distributed discharge hours required (dividing by capacity)
+      distributed_discharge_hrs_required <- distributed_discharge_amount /
+        distributed_storage_capacity_mw
+
+      # If distributed discharge hours required exceeds discharge hours, error
+      if (distributed_discharge_hrs_required > manual_discharge_hours_num) {
+        stop("")
+      }
+
+
+    }
+
+
 
     # ADD TABLE F CHECK HERE!!!
+
+
+
+
+
+
+
+
 
     # Creates a list of length 365 (or, in a leap year, 366) where each element
     #   is a 24-length numeric vector containing the BAU load for each hour of
@@ -403,12 +452,18 @@ generate_reduction <- function(
       storage_load_reduction <- storage_load_reduction * month_hour_indicator
     }
 
+    # Add the storage load reduction to hourly load reduction (to be returned)
+    hourly_load_reduction <- hourly_load_reduction + storage_load_reduction
+
     # ENDED HERE
     # Still need to test all this
 
 
+    # Add namespace prefixes
 
 
+
+    # Be sure to test manual_charging_vec specifications
 
 
 
