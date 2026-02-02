@@ -120,7 +120,7 @@ generate_reduction <- function(
     yr_hrs <- 8760
   }
 
-  # Scale down the percents values entered by users, since they're assumed to be
+  # Scale down the percent values entered by users, since they're assumed to be
   #   0-100, but are more practically used here are fractions from 0 to 1.
   apply_reduction_top_x_pct_hours <- apply_reduction_top_x_pct_hours / 100
   reduce_x_pct_in_top_hours <- reduce_x_pct_in_top_hours / 100
@@ -330,16 +330,17 @@ generate_reduction <- function(
           charging_indicator == "Charging" ~ -1 * depth_of_discharge * distributed_storage_capacity_mw,
           charging_indicator == "Discharging" ~ round_trip_efficiency * depth_of_discharge * distributed_storage_capacity_mw
         ),
-        daily_load_reduction_both = daily_load_reduction_utility + (daily_load_reduction_distributed / (1 - t_and_d_loss_factor))
+        # We need to adjust the distributed part by T&D losses
+        daily_load_reduction_distributed = daily_load_reduction_distributed / (1 - t_and_d_loss_factor),
+
+        # Then we sum to get the total reduction
+        daily_load_reduction_both = daily_load_reduction_utility + daily_load_reduction_distributed
       )
 
     # Now we perform the check to ensure that enough discharging hours have been
     #   specified to allow for full discharging. Note that this is only a concern
     #   if the user has specified their own manual_charging_vec.
     if (!is.null(manual_charging_vec)) {
-      # The number of discharge hours
-      manual_discharge_hours_num <- sum(manual_charging_vec == "Discharging")
-
       # The amount of utility energy to be discharged per day
       utility_discharge_amount <- utility_storage_capacity_mw *
         duration *
@@ -363,8 +364,8 @@ generate_reduction <- function(
       # If distributed or utility discharge hours required exceeds discharge
       #   hours, give error
       if (
-        distributed_discharge_hrs_required > manual_discharge_hours_num |
-        utility_discharge_hrs_required > manual_discharge_hours_num
+        distributed_discharge_hrs_required > num_discharge_hrs |
+        utility_discharge_hrs_required > num_discharge_hrs
       ) {
         stop("With the number of discharge hours manually entered, the system will not be able to discharge correctly. Please increase the number of discharge hours using the manual_charging_vec argument.")
       }
@@ -380,17 +381,17 @@ generate_reduction <- function(
       )
     )
 
-    # Creates a (named) numeric vector of legnth 365 (366) where each element
+    # Creates a (named) numeric vector of length 365 (366) where each element
     #   represents the total BAU load for the given day.
     bau_load_days <- purrr::map_dbl(bau_load_days, sum)
 
-    # Get if max_annual_discharge_cycles = n, this is the the value of BAU load
+    # Let max_annual_discharge_cycles = n. This is the the value of BAU load
     #   in the nth day (after sorting days from highest to lowest BAU load). It
     #   is the day with the lowest BAU load on which we discharge.
     nth_discharge_day_value <- sort(bau_load_days, decreasing = TRUE)[max_annual_discharge_cycles]
 
-    # This is a 365 (366)-length vector which is TRUE for all days >= the
-    #   nth_discharge_day_value (i.e., for all days when we discharge) and false
+    # This is a 365 (366) length vector which is TRUE for all days >= the
+    #   nth_discharge_day_value (i.e., for all days when we discharge) and FALSE
     #   for all other days.
     discharge_day_indicator <- bau_load_days >= nth_discharge_day_value
 
@@ -399,7 +400,7 @@ generate_reduction <- function(
     #   and FALSE for hours where we don't.
     discharge_hour_indicator <- rep(discharge_day_indicator, each = 24)
 
-    # Now we take that daily load reduction (from both distributed and utiltiy
+    # Now we take that daily load reduction (from both distributed and utility
     #   storage) we got above and multiply it by the discharge hour indicator.
     #   FALSEs get treated like 0s, and thus we zero out all non-discharging
     #   hours from the vector
@@ -442,10 +443,6 @@ generate_reduction <- function(
 
     # Add the storage load reduction to hourly load reduction (to be returned)
     hourly_load_reduction <- hourly_load_reduction + storage_load_reduction
-
-
-
-    # Be sure to test manual_charging_vec specifications
 
 
 
