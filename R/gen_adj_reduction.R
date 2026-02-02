@@ -310,22 +310,22 @@ generate_reduction <- function(
     # The number of discharging hours
     num_discharge_hrs <- sum(charging_pattern_24h == "Discharging")
 
-    charging_tibble <- tibble(
+    charging_tibble <- tibble::tibble(
       hour = 1:24,
       charging_indicator = charging_pattern_24h
     ) |>
-      mutate(
-        charging_fraction = case_when(
+      dplyr::mutate(
+        charging_fraction = dplyr::case_when(
           charging_indicator == "Idle" ~ 0,
           charging_indicator == "Charging" ~ (1 / num_charge_hrs),
           charging_indicator == "Discharging" ~ (-1 * (round_trip_efficiency / num_discharge_hrs))
         ),
-        daily_load_reduction_utility = case_when(
+        daily_load_reduction_utility = dplyr::case_when(
           charging_indicator == "Idle" ~ 0,
           charging_indicator == "Charging" ~ -1 * depth_of_discharge * utility_storage_capacity_mw,
           charging_indicator == "Discharging" ~ round_trip_efficiency * depth_of_discharge * utility_storage_capacity_mw
         ),
-        daily_load_reduction_distributed = case_when(
+        daily_load_reduction_distributed = dplyr::case_when(
           charging_indicator == "Idle" ~ 0,
           charging_indicator == "Charging" ~ -1 * depth_of_discharge * distributed_storage_capacity_mw,
           charging_indicator == "Discharging" ~ round_trip_efficiency * depth_of_discharge * distributed_storage_capacity_mw
@@ -350,11 +350,6 @@ generate_reduction <- function(
       utility_discharge_hrs_required <- utility_discharge_amount /
         utility_storage_capacity_mw
 
-      # If utility discharge hours required exceeds discharge hours, error
-      if (utility_discharge_hrs_required > manual_discharge_hours_num) {
-        stop("")
-      }
-
       # The amount of distributed energy to be discharged per day
       distributed_discharge_amount <- distributed_storage_capacity_mw *
         duration *
@@ -365,25 +360,15 @@ generate_reduction <- function(
       distributed_discharge_hrs_required <- distributed_discharge_amount /
         distributed_storage_capacity_mw
 
-      # If distributed discharge hours required exceeds discharge hours, error
-      if (distributed_discharge_hrs_required > manual_discharge_hours_num) {
-        stop("")
+      # If distributed or utility discharge hours required exceeds discharge
+      #   hours, give error
+      if (
+        distributed_discharge_hrs_required > manual_discharge_hours_num |
+        utility_discharge_hrs_required > manual_discharge_hours_num
+      ) {
+        stop("With the number of discharge hours manually entered, the system will not be able to discharge correctly. Please increase the number of discharge hours using the manual_charging_vec argument.")
       }
-
-
     }
-
-
-
-    # ADD TABLE F CHECK HERE!!!
-
-
-
-
-
-
-
-
 
     # Creates a list of length 365 (or, in a leap year, 366) where each element
     #   is a 24-length numeric vector containing the BAU load for each hour of
@@ -397,7 +382,7 @@ generate_reduction <- function(
 
     # Creates a (named) numeric vector of legnth 365 (366) where each element
     #   represents the total BAU load for the given day.
-    bau_load_days <- map_dbl(bau_load_days, sum)
+    bau_load_days <- purrr::map_dbl(bau_load_days, sum)
 
     # Get if max_annual_discharge_cycles = n, this is the the value of BAU load
     #   in the nth day (after sorting days from highest to lowest BAU load). It
@@ -419,7 +404,7 @@ generate_reduction <- function(
     #   FALSEs get treated like 0s, and thus we zero out all non-discharging
     #   hours from the vector
     storage_load_reduction <- charging_tibble |>
-      pull(daily_load_reduction_both) |>
+      dplyr::pull(daily_load_reduction_both) |>
       rep(length.out = length(discharge_hour_indicator)) |>
       (\(x) x * discharge_hour_indicator)() |>
       unname()
@@ -429,7 +414,7 @@ generate_reduction <- function(
     #   blocked)
     if (!apply_profile_weekdays) {
       # Vector which is TRUE on weekend hours, FALSE on weekday hours
-      weekend_hour_indicator <- wday(datetime_8760) %in% c("7", "1")
+      weekend_hour_indicator <- lubridate::wday(datetime_8760) %in% c("7", "1")
 
       # Zero out all weekday hours
       storage_load_reduction <- storage_load_reduction * weekend_hour_indicator
@@ -437,7 +422,9 @@ generate_reduction <- function(
 
     if (!apply_profile_weekends) {
       # Vector which is TRUE on weekday hours, FALSE on weekend hours
-      weekday_hour_indicator <- !(wday(datetime_8760) %in% c("7", "1"))
+      weekday_hour_indicator <- !(
+        lubridate::wday(datetime_8760) %in% c("7", "1")
+      )
 
       # Zero out all weekday hours
       storage_load_reduction <- storage_load_reduction * weekday_hour_indicator
@@ -446,7 +433,8 @@ generate_reduction <- function(
     if (length(apply_profile_months) < 12) {
       # Vector which is TRUE on hours from included months, FALSE on all other
       #   hours
-      month_hour_indicator <- month(datetime_8760) %in% apply_profile_months
+      month_hour_indicator <- lubridate::month(datetime_8760) %in%
+        apply_profile_months
 
       # Zero out all excluded month hours
       storage_load_reduction <- storage_load_reduction * month_hour_indicator
@@ -454,12 +442,6 @@ generate_reduction <- function(
 
     # Add the storage load reduction to hourly load reduction (to be returned)
     hourly_load_reduction <- hourly_load_reduction + storage_load_reduction
-
-    # ENDED HERE
-    # Still need to test all this
-
-
-    # Add namespace prefixes
 
 
 
