@@ -256,9 +256,11 @@ generate_reduction <- function(
       "utility_solar_pv_capacity_mw" = utility_solar_pv_capacity_mw
     )
 
+    browser()
+
     # Multiply each renewable capacity factor vector by the matching
     #   capacity input by the user, then sum them together.
-    summed_renewables <- cfs |>
+    renewables_tibble <- cfs |>
       dplyr::mutate(
         `Onshore Wind` = `Onshore Wind` * capacity_vector["onshore_wind_capacity_mw"],
         `Offshore Wind` = `Offshore Wind` * capacity_vector["offshore_wind_capacity_mw"],
@@ -279,7 +281,9 @@ generate_reduction <- function(
         ),
 
         summed_renewables = `Onshore Wind` + `Offshore Wind` + `Rooftop PV` + `Utility PV`
-      ) |>
+      )
+
+    summed_renewables <- renewables_tibble |>
       dplyr::pull(summed_renewables)
 
     # Add this to whatever load reduction user has already entered.
@@ -443,14 +447,109 @@ generate_reduction <- function(
 
     # Add the storage load reduction to hourly load reduction (to be returned)
     hourly_load_reduction <- hourly_load_reduction + storage_load_reduction
-
-
-
-
-    # At the end of coding just storage: run this line-by-line to make sure you
-    #   understand each step
-
   }
+
+
+
+
+  browser()
+
+
+  # STARTING HERE: CODE FOR SOLAR
+
+  if (pair_solar_with_storage) {
+
+    charging_tibble_full <- charging_tibble |>
+      dplyr::slice(rep(1:dplyr::n(), length.out = yr_hrs))
+
+    charging_tibble_full <- dplyr::bind_cols(
+      datetime_8760_col = datetime_8760,
+      charging_tibble_full,
+      rooftop_pv = renewables_tibble$`Rooftop PV`,
+      utility_pv = renewables_tibble$`Utility PV`
+    )
+
+    charging_tibble_full <- charging_tibble_full |>
+      dplyr::mutate(year_day = lubridate::yday(datetime_8760), .before = hour)
+
+    charging_day_list <- charging_tibble_full |>
+      dplyr::group_by(year_day) |>
+      dplyr::group_split()
+
+
+
+
+
+
+
+
+
+
+    # Ended here — but I think you should take a different approach going forward:
+    #   Write a function within solar_storage_day. solar_storage_day calls that
+    #   inner function twice — once for utility storage/solar and once for
+    #   distributed storage/solar. The inner function returns a 24-length vector
+    #   with load reduction. You sum the results of the two calls of the inner
+    #   function, and then solar_storage_day returns the results of that sum (a
+    #   vector of length 24).
+
+    solar_storage_day <- function(tib) {
+
+      tib_summed <- tib |>
+        filter(charging_indicator == "Charging") |>
+        summarize(
+          total_charging_need_utility = sum(daily_load_reduction_utility) * -1,
+          total_charging_need_distributed = sum(daily_load_reduction_distributed) * -1,
+          total_solar_gen_charging_utility = sum(utility_pv),
+          total_solar_gen_charging_distributed = sum(rooftop_pv)
+        )
+
+      if (
+        tib_summed$total_solar_gen_charging_utility >= tib_summed$total_charging_need_utility |
+        tib_summed$total_solar_gen_charging_distributed >= tib_summed$total_charging_need_distributed
+      ) {
+
+        tib_summed_hour <- tib |>
+          filter(charging_indicator == "Charging") |>
+          mutate(
+            solar_exceeds_charging_hour_utility = utility_pv >= (daily_load_reduction_utility * -1),
+            solar_exceeds_charging_hour_distributed = rooftop_pv >= (daily_load_reduction_distributed * -1),
+          ) |>
+          summarize(
+            solar_exceeds_charging_count_utility = sum(solar_exceeds_charging_hour_utility),
+            solar_exceeds_charging_count_distributed = sum(solar_exceeds_charging_hour_distributed)
+          )
+
+        # The "Solar Is Less Than Charging Needs in Some Charging Hours but More
+        #   Than Enough Overall" scenario
+        if (
+          tib_summed_hour$solar_exceeds_charging_count_utility > 0 |
+          tib_summed_hour$solar_exceeds_charging_count_distributed > 0
+        ) {
+
+          # The "Solar Exceeds Charging Needs" scenario
+        } else {
+
+        }
+
+        # The "Solar Is Less Than Charging Needs" scenario
+      } else {
+
+      }
+
+
+
+    }
+
+    # Expand the charging tibble out
+
+    # Make it into a 365 (366) list
+
+    # Write a fucntion to deal with each day, map it across the list
+
+    storage_load_reduction
+  }
+
   return(hourly_load_reduction)
 }
 
