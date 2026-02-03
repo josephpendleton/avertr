@@ -527,13 +527,53 @@ generate_reduction <- function(
           tib_summed_hour$solar_exceeds_charging_count_distributed > 0
         ) {
 
+          # SOMETHING LIKE
+          tib |>
+            mutate(
+              VECTOR = if_else(
+                charging_indicator == "Charging",
+                HERE,
+                VECTOR
+              )
+            )
+
+          # subtract the total charging need from cumsum(solar generation)
+          # Find the smallest positive value
+          # Set the next solar gen hour to that smallest positive hour
+          # Like the "Solar Exceeds Charging Needs" scenario,
+
+          # Think about edge cases where, e.g., the final hour perfectly meets
+          #   demand
+
+
+
+          tib_summed$total_charging_need_utility
+
+
+
+
           # The "Solar Exceeds Charging Needs" scenario
         } else {
+          # In this case, there's enough in each hour, so we can simply subtract
+          #   required charging from the solar generation in each hour (which
+          #   was already added above).
+
+          # SO THIS RETURNS A VECTOR OF NEGATIVE VALUES REPRESENTING CHARGING,
+          #   POSITIVE VALUES REPRESENTING DISCHARGING. PRETTY SURE THIS IS
+          #   JUST HOW THE PREVIOUS NON-SOLAR-COUPLED VERSION WORKS.
+
+          # I don't think you have to do anything crazy for distributed vs. utility,
+          #   just make sure the distributed values you're using have already been
+          #   adjusted, because you should be subtracting more than required to
+          #   charge, bc some will be lost in T&D.
 
         }
 
         # The "Solar Is Less Than Charging Needs" scenario
       } else {
+
+        # AVERT sets each hour of charging to equal the available solar PV generation (in MWh)
+        # AVERT prorates the desired discharging amount by the ratio of actual total charging allowed to demanded charging.
 
       }
 
