@@ -256,8 +256,6 @@ generate_reduction <- function(
       "utility_solar_pv_capacity_mw" = utility_solar_pv_capacity_mw
     )
 
-    browser()
-
     # Multiply each renewable capacity factor vector by the matching
     #   capacity input by the user, then sum them together.
     renewables_tibble <- cfs |>
@@ -495,91 +493,136 @@ generate_reduction <- function(
 
     solar_storage_day <- function(tib) {
 
-      tib_summed <- tib |>
-        filter(charging_indicator == "Charging") |>
-        summarize(
-          total_charging_need_utility = sum(daily_load_reduction_utility) * -1,
-          total_charging_need_distributed = sum(daily_load_reduction_distributed) * -1,
-          total_solar_gen_charging_utility = sum(utility_pv),
-          total_solar_gen_charging_distributed = sum(rooftop_pv)
-        )
+      solar_storage_day_inner <- function(tib, daily_load_reduction, pv) {
 
-      if (
-        tib_summed$total_solar_gen_charging_utility >= tib_summed$total_charging_need_utility |
-        tib_summed$total_solar_gen_charging_distributed >= tib_summed$total_charging_need_distributed
-      ) {
-
-        tib_summed_hour <- tib |>
+        tib_summed <- tib |>
           filter(charging_indicator == "Charging") |>
-          mutate(
-            solar_exceeds_charging_hour_utility = utility_pv >= (daily_load_reduction_utility * -1),
-            solar_exceeds_charging_hour_distributed = rooftop_pv >= (daily_load_reduction_distributed * -1),
-          ) |>
           summarize(
-            solar_exceeds_charging_count_utility = sum(solar_exceeds_charging_hour_utility),
-            solar_exceeds_charging_count_distributed = sum(solar_exceeds_charging_hour_distributed)
+            total_charging_need = sum({{daily_load_reduction}}) * -1,
+            total_solar_gen_charging = sum({{pv}}),
           )
 
-        # The "Solar Is Less Than Charging Needs in Some Charging Hours but More
-        #   Than Enough Overall" scenario
         if (
-          tib_summed_hour$solar_exceeds_charging_count_utility > 0 |
-          tib_summed_hour$solar_exceeds_charging_count_distributed > 0
+          tib_summed$total_solar_gen_charging >= tib_summed$total_charging_need
         ) {
 
-          # SOMETHING LIKE
-          tib |>
+          tib_summed_hour <- tib |>
+            filter(charging_indicator == "Charging") |>
             mutate(
-              VECTOR = if_else(
-                charging_indicator == "Charging",
-                HERE,
-                VECTOR
-              )
+              solar_exceeds_charging_hour = {{pv}} >= ({{daily_load_reduction}} * -1)
+            ) |>
+            summarize(
+              solar_exceeds_charging_count = sum(solar_exceeds_charging_hour)
             )
 
-          # subtract the total charging need from cumsum(solar generation)
-          # Find the smallest positive value
-          # Set the next solar gen hour to that smallest positive hour
-          # Like the "Solar Exceeds Charging Needs" scenario,
+          # The "Solar Is Less Than Charging Needs in Some Charging Hours but More
+          #   Than Enough Overall" scenario
+          if (
+            tib_summed_hour$solar_exceeds_charging_count > 0
+          ) {
 
-          # Think about edge cases where, e.g., the final hour perfectly meets
-          #   demand
+            pv_cumsum_minus_need <- tib |>
+              mutate(
+                pv_cumsum = cumsum({{pv}}),
+                pv_cumsum_minus_need = pv_cumsum -
+                  pull(tib_summed_hour, total_charging_need)
+              ) |>
+                pull(pv_cumsum_minus_need)
+
+
+            min_pos_hr <- min(pv_cumsum_minus_need[pv_cumsum_minus_need >= 0])
+
+            min_pos_hr_index <- which.min(
+              pv_cumsum_minus_need[pv_cumsum_minus_need >= 0]
+            )
+
+            min_neg_hr_index <- which.min(
+              pv_cumsum_minus_need[pv_cumsum_minus_need < 0]
+            )
+
+
+            # 1. You probably have to re-do this with tidyverse syntax — the embracing won't work (I don't think) with the $ selector
+            # 2. I think you flipped smallest negative and smallest positive value so far. I think you should actually look for the
+            #   smallest negative value, etc. Just test this out with a quick example. (And be careful of the 0 edge case as you
+            #   recode)
+            # 3. Maybe just look through the macros at this point...
+            # 4. How are you sure this will stay constrained to charging hours? I think it will by default, as written...
+            # 5. Is this robust to weird default charging patterns? E.g., they're interspersed, day ends with a charging hour, etc.
+            #   Along those lines, in AVERT, can you enter discharging hours before charging?
 
 
 
-          tib_summed$total_charging_need_utility
+            # Also, this will also remove all discharging, and you don't want to
+            #   touch that. So probably an if_else() with mutate() is better here
+            tib${{daily_load_reduction}} <- rep(0, 24)
+
+            tib${{daily_load_reduction}}[1:min_pos_hr_index] <- tib${{pv}}[[1:min_pos_hr_index]]
+            tib${{daily_load_reduction}}[min_neg_hr_index] <- min_pos_hr
 
 
 
 
-          # The "Solar Exceeds Charging Needs" scenario
+
+
+
+            # subtract the total charging need from cumsum(solar generation)
+            # Find the smallest positive value
+            # Set the next solar gen hour to that smallest positive hour
+            # Like the "Solar Exceeds Charging Needs" scenario,
+
+            # Think about edge cases where, e.g., the final hour perfectly meets
+            #   demand, there are multiple matching, etc.
+
+            # Also test for an edge case where, e.g., the hour before we hit
+            #   sufficient charging is hour 15, but then the final hour where we
+            #   actually hit sufficient charging is hour 21 (i.e., they're not
+            #   adjacent).
+
+
+
+            tib_summed$total_charging_need_utility
+
+
+
+
+            # The "Solar Exceeds Charging Needs" scenario
+          } else {
+            # In this case, there's enough in each hour, so we can simply subtract
+            #   required charging from the solar generation in each hour (which
+            #   was already added above).
+
+            # SO THIS RETURNS A VECTOR OF NEGATIVE VALUES REPRESENTING CHARGING,
+            #   POSITIVE VALUES REPRESENTING DISCHARGING. PRETTY SURE THIS IS
+            #   JUST HOW THE PREVIOUS NON-SOLAR-COUPLED VERSION WORKS.
+
+            # I don't think you have to do anything crazy for distributed vs. utility,
+            #   just make sure the distributed values you're using have already been
+            #   adjusted, because you should be subtracting more than required to
+            #   charge, bc some will be lost in T&D.
+
+          }
+
+          # The "Solar Is Less Than Charging Needs" scenario
         } else {
-          # In this case, there's enough in each hour, so we can simply subtract
-          #   required charging from the solar generation in each hour (which
-          #   was already added above).
 
-          # SO THIS RETURNS A VECTOR OF NEGATIVE VALUES REPRESENTING CHARGING,
-          #   POSITIVE VALUES REPRESENTING DISCHARGING. PRETTY SURE THIS IS
-          #   JUST HOW THE PREVIOUS NON-SOLAR-COUPLED VERSION WORKS.
-
-          # I don't think you have to do anything crazy for distributed vs. utility,
-          #   just make sure the distributed values you're using have already been
-          #   adjusted, because you should be subtracting more than required to
-          #   charge, bc some will be lost in T&D.
+          # AVERT sets each hour of charging to equal the available solar PV generation (in MWh)
+          # AVERT prorates the desired discharging amount by the ratio of actual total charging allowed to demanded charging.
 
         }
 
-        # The "Solar Is Less Than Charging Needs" scenario
-      } else {
 
-        # AVERT sets each hour of charging to equal the available solar PV generation (in MWh)
-        # AVERT prorates the desired discharging amount by the ratio of actual total charging allowed to demanded charging.
 
       }
 
 
 
+
+
+
     }
+
+
+
 
     # Expand the charging tibble out
 
