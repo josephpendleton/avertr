@@ -495,6 +495,7 @@ generate_reduction <- function(
 
       solar_storage_day_inner <- function(tib, daily_load_reduction, pv) {
 
+        browser()
         tib_summed <- tib |>
           filter(charging_indicator == "Charging") |>
           summarize(
@@ -509,36 +510,43 @@ generate_reduction <- function(
           tib_summed_hour <- tib |>
             filter(charging_indicator == "Charging") |>
             mutate(
-              solar_exceeds_charging_hour = {{pv}} >= ({{daily_load_reduction}} * -1)
+              charging_exceeds_solar_hour = ({{daily_load_reduction}} * -1) >= {{pv}}
             ) |>
             summarize(
-              solar_exceeds_charging_count = sum(solar_exceeds_charging_hour)
+              charging_exceeds_solar_hour_count = sum(charging_exceeds_solar_hour)
             )
 
           # The "Solar Is Less Than Charging Needs in Some Charging Hours but More
           #   Than Enough Overall" scenario
           if (
-            tib_summed_hour$solar_exceeds_charging_count > 0
+            tib_summed_hour$charging_exceeds_solar_hour_count > 0
           ) {
 
             pv_cumsum_minus_need <- tib |>
+              filter(charging_indicator == "Charging") |>
               mutate(
                 pv_cumsum = cumsum({{pv}}),
                 pv_cumsum_minus_need = pv_cumsum -
-                  pull(tib_summed_hour, total_charging_need)
+                  pull(tib_summed, total_charging_need)
               ) |>
                 pull(pv_cumsum_minus_need)
 
 
-            min_pos_hr <- min(pv_cumsum_minus_need[pv_cumsum_minus_need >= 0])
+            # Represents charging leftover after charging at full capacity for
+            #   hours
+            min_neg_hr <- min(pv_cumsum_minus_need[pv_cumsum_minus_need < 0])
 
+            # The last hour where we will set charging equal to generation
+            min_neg_hr_index <- which.min(
+              pv_cumsum_minus_need[pv_cumsum_minus_need < 0]
+            )
+
+            # The hour where we will set charging equal to the leftover charging
+            #   (i.e., min_neg_hr * -1)
             min_pos_hr_index <- which.min(
               pv_cumsum_minus_need[pv_cumsum_minus_need >= 0]
             )
 
-            min_neg_hr_index <- which.min(
-              pv_cumsum_minus_need[pv_cumsum_minus_need < 0]
-            )
 
 
             # 1. You probably have to re-do this with tidyverse syntax — the embracing won't work (I don't think) with the $ selector
@@ -554,12 +562,16 @@ generate_reduction <- function(
 
             # Also, this will also remove all discharging, and you don't want to
             #   touch that. So probably an if_else() with mutate() is better here
-            tib${{daily_load_reduction}} <- rep(0, 24)
+            # tib${{daily_load_reduction}} <- rep(0, 24)
+            #
+            # tib${{daily_load_reduction}}[1:min_pos_hr_index] <- tib${{pv}}[[1:min_pos_hr_index]]
+            # tib${{daily_load_reduction}}[min_neg_hr_index] <- min_pos_hr
 
-            tib${{daily_load_reduction}}[1:min_pos_hr_index] <- tib${{pv}}[[1:min_pos_hr_index]]
-            tib${{daily_load_reduction}}[min_neg_hr_index] <- min_pos_hr
 
 
+
+            # Doesn't the code above allow the system to charge above greater than its
+            #   capacity in some hours, since we're just setting charging equal to solar gen?
 
 
 
@@ -577,6 +589,10 @@ generate_reduction <- function(
             #   sufficient charging is hour 15, but then the final hour where we
             #   actually hit sufficient charging is hour 21 (i.e., they're not
             #   adjacent).
+            # And esp. what if between those two (e.g., in hour 19) there's some
+            #   discharging that happens, such that in hour 21 we can actually
+            #   charge to more than just the difference between hour 15 and full
+            #   discharging
 
 
 
@@ -616,6 +632,7 @@ generate_reduction <- function(
 
 
 
+      solar_storage_day_inner(tib, daily_load_reduction_utility, utility_pv)
 
 
 
@@ -630,11 +647,19 @@ generate_reduction <- function(
 
     # Write a fucntion to deal with each day, map it across the list
 
+
     storage_load_reduction
   }
 
+
+  solar_storage_day(charging_day_list[[2]])
+
   return(hourly_load_reduction)
 }
+
+
+
+
 
 
 
