@@ -503,6 +503,7 @@ generate_reduction <- function(
             total_solar_gen_charging = sum({{pv}}),
           )
 
+
         if (
           tib_summed$total_solar_gen_charging >= tib_summed$total_charging_need
         ) {
@@ -522,6 +523,7 @@ generate_reduction <- function(
             tib_summed_hour$charging_exceeds_solar_hour_count > 0
           ) {
 
+
             pv_cumsum_minus_need <- tib |>
               filter(charging_indicator == "Charging") |>
               mutate(
@@ -529,23 +531,68 @@ generate_reduction <- function(
                 pv_cumsum_minus_need = pv_cumsum -
                   pull(tib_summed, total_charging_need)
               ) |>
-                pull(pv_cumsum_minus_need)
+              pull(pv_cumsum_minus_need)
 
 
-            # Represents charging leftover after charging at full capacity for
+            # Represents charging left over after charging at full capacity for
             #   hours
-            min_neg_hr <- min(pv_cumsum_minus_need[pv_cumsum_minus_need < 0])
+            max_neg_hr <- max(pv_cumsum_minus_need[pv_cumsum_minus_need < 0])
 
             # The last hour where we will set charging equal to generation
-            min_neg_hr_index <- which.min(
+            max_neg_hr_index <- which.max(
               pv_cumsum_minus_need[pv_cumsum_minus_need < 0]
             )
 
             # The hour where we will set charging equal to the leftover charging
             #   (i.e., min_neg_hr * -1)
-            min_pos_hr_index <- which.min(
-              pv_cumsum_minus_need[pv_cumsum_minus_need >= 0]
-            )
+            min_pos_hr_index <- length(
+              pv_cumsum_minus_need[pv_cumsum_minus_need < 0]
+            ) + 1
+
+
+            change_vec <- c(rep("charging_eq_gen", max_neg_hr_index), "leftover_hr", rep("zero_hr", duration - (max_neg_hr_index + 1)))
+
+            change_vec <- tibble(hour = which(tib$charging_indicator == "Charging"), change = change_vec, pv_cumsum_minus_need = pv_cumsum_minus_need)
+
+
+
+            tib2 <- tib
+
+            tib2 <- tib2 |> left_join(change_vec, by = join_by(hour), unmatched = "error", relationship = "one-to-one")
+
+            tib2 <- tib2 |>
+              mutate(
+                {{daily_load_reduction}} := case_when(
+                  change == "charging_eq_gen" ~ {{pv}} * -1,
+                  change == "leftover_hr" ~ max_neg_hr,
+                  change == "zero_hr" ~ 0,
+                  is.na(change) ~ {{daily_load_reduction}}
+                )
+              )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -560,43 +607,52 @@ generate_reduction <- function(
 
 
 
-            # Also, this will also remove all discharging, and you don't want to
-            #   touch that. So probably an if_else() with mutate() is better here
-            # tib${{daily_load_reduction}} <- rep(0, 24)
-            #
-            # tib${{daily_load_reduction}}[1:min_pos_hr_index] <- tib${{pv}}[[1:min_pos_hr_index]]
-            # tib${{daily_load_reduction}}[min_neg_hr_index] <- min_pos_hr
-
-
-
-
-            # Doesn't the code above allow the system to charge above greater than its
-            #   capacity in some hours, since we're just setting charging equal to solar gen?
 
 
 
 
 
-            # subtract the total charging need from cumsum(solar generation)
-            # Find the smallest positive value
-            # Set the next solar gen hour to that smallest positive hour
-            # Like the "Solar Exceeds Charging Needs" scenario,
 
-            # Think about edge cases where, e.g., the final hour perfectly meets
-            #   demand, there are multiple matching, etc.
 
-            # Also test for an edge case where, e.g., the hour before we hit
-            #   sufficient charging is hour 15, but then the final hour where we
-            #   actually hit sufficient charging is hour 21 (i.e., they're not
-            #   adjacent).
-            # And esp. what if between those two (e.g., in hour 19) there's some
-            #   discharging that happens, such that in hour 21 we can actually
-            #   charge to more than just the difference between hour 15 and full
-            #   discharging
+              # Also, # Also, # Also, this will also remove all discharging, and you don't want to
+              #   touch that. So probably an if_else() with mutate() is better here
+              # tib${{daily_load_reduction}} <- rep(0, 24)
+              #
+              # tib${{daily_load_reduction}}[1:min_pos_hr_index] <- tib${{pv}}[[1:min_pos_hr_index]]
+              # tib${{daily_load_reduction}}[min_neg_hr_index] <- min_pos_hr
 
 
 
-            tib_summed$total_charging_need_utility
+
+              # Doesn't the code above allow the system to charge above greater than its
+              #   capacity in some hours, since we're just setting charging equal to solar gen?
+
+
+
+
+
+              # subtract the total charging need from cumsum(solar generation)
+              # Find the smallest positive value
+              # Set the next solar gen hour to that smallest positive hour
+              # Like the "Solar Exceeds Charging Needs" scenario,
+
+              # Think about edge cases where, e.g., the final hour perfectly meets
+              #   demand, there are multiple matching, etc.
+
+              # Also test for an edge case where, e.g., the hour before we hit
+              #   sufficient charging is hour 15, but then the final hour where we
+              #   actually hit sufficient charging is hour 21 (i.e., they're not
+              #   adjacent).
+              # And esp. what if between those two (e.g., in hour 19) there's some
+              #   discharging that happens, such that in hour 21 we can actually
+              #   charge to more than just the difference between hour 15 and full
+              #   discharging
+
+
+
+              #tib_summed$total_charging_need_utility
+
+
 
 
 
