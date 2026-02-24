@@ -524,12 +524,19 @@ generate_reduction <- function(
           ) {
 
 
+            # Consider, at some point, an edge case where the above condition is met
+            #   but the pv_cumsum_minus_need vector looks something like this:
+            #   1041.28712  -610.53026   -95.08357   0   0   0   714.67526  1048.42924
+            # I'm pretty sure that what I've written would work even in that case,
+            #   but be sure
+
+
             pv_cumsum_minus_need <- tib |>
               filter(charging_indicator == "Charging") |>
               mutate(
                 pv_cumsum = cumsum({{pv}}),
                 pv_cumsum_minus_need = pv_cumsum -
-                  pull(tib_summed, total_charging_need)
+                  tib_summed$total_charging_need
               ) |>
               pull(pv_cumsum_minus_need)
 
@@ -545,9 +552,7 @@ generate_reduction <- function(
 
             # The hour where we will set charging equal to the leftover charging
             #   (i.e., min_neg_hr * -1)
-            min_pos_hr_index <- length(
-              pv_cumsum_minus_need[pv_cumsum_minus_need < 0]
-            ) + 1
+            min_pos_hr_index <- max_neg_hr_index + 1
 
 
             change_vec <- c(rep("charging_eq_gen", max_neg_hr_index), "leftover_hr", rep("zero_hr", duration - (max_neg_hr_index + 1)))
@@ -708,7 +713,7 @@ generate_reduction <- function(
   }
 
 
-  solar_storage_day(charging_day_list[[2]])
+  solar_storage_day(charging_day_list[[1]])
 
   return(hourly_load_reduction)
 }
