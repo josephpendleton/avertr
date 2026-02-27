@@ -576,6 +576,24 @@ generate_reduction <- function(
               )
 
 
+            # Ended hereish. Problem with column AV in CalculateEERE, includes
+            #   additional negative values based on the cumulative sum. Try it
+            #   with 365 allowed charging days and see the second day for an
+            #   example.
+            # For more representative example, probably leave everything default
+            #   where you can, esp. depth of discharge and RTE should neither
+            #   be 100%
+
+
+            # Still need to determine if there can be non-consecutive charging
+            #   hours
+
+            # Also still need to figure out what would happen if you have a case
+            #   where you meet the above conditions (more than enough overall but
+            #   too little in >=1 hour) but solar available in just one hour
+            #   is greater than system capacity.
+
+
 
 
 
@@ -713,7 +731,7 @@ generate_reduction <- function(
   }
 
 
-  solar_storage_day(charging_day_list[[1]])
+  solar_storage_day(charging_day_list[[2]])
 
   return(hourly_load_reduction)
 }
