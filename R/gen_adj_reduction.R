@@ -402,6 +402,18 @@ generate_reduction <- function(
     #   and FALSE for hours where we don't.
     discharge_hour_indicator <- rep(discharge_day_indicator, each = 24)
 
+
+
+
+    # START RE-WRITE AROUND HERE. (You'll prob need to bring up the table you
+    #   construct below)
+    # Start with charging allowed hour — should be easy, just uses discharge
+    #   hour indicator
+
+
+
+
+
     # Now we take that daily load reduction (from both distributed and utility
     #   storage) we got above and multiply it by the discharge hour indicator.
     #   FALSEs get treated like 0s, and thus we zero out all non-discharging
@@ -470,9 +482,9 @@ generate_reduction <- function(
     charging_tibble_full <- charging_tibble_full |>
       dplyr::mutate(year_day = lubridate::yday(datetime_8760), .before = hour)
 
-    charging_day_list <- charging_tibble_full |>
-      dplyr::group_by(year_day) |>
-      dplyr::group_split()
+    # charging_day_list <- charging_tibble_full |>
+    #   dplyr::group_by(year_day) |>
+    #   dplyr::group_split()
 
 
 
@@ -496,12 +508,38 @@ generate_reduction <- function(
       solar_storage_day_inner <- function(tib, daily_load_reduction, pv) {
 
         browser()
+
+        # BASICALLY STARTING FROM HERE YOU NEED TO REPRODUCE CALCULATEEERE FROM
+        #   AVERT
+
+
+        # First column: should we run storage dispatch?
+
+
+
+
         tib_summed <- tib |>
           filter(charging_indicator == "Charging") |>
           summarize(
             total_charging_need = sum({{daily_load_reduction}}) * -1,
             total_solar_gen_charging = sum({{pv}}),
           )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         if (
@@ -731,7 +769,7 @@ generate_reduction <- function(
   }
 
 
-  solar_storage_day(charging_day_list[[2]])
+  solar_storage_day(charging_tibble_full)
 
   return(hourly_load_reduction)
 }
