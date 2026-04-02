@@ -402,11 +402,70 @@ generate_reduction <- function(
     #   and FALSE for hours where we don't.
     discharge_hour_indicator <- rep(discharge_day_indicator, each = 24)
 
+    # Finally, we need to restrict to times when charging is allowed (i.e.,
+    #   remove all charging and discharging activity at times when it has been
+    #   blocked)
+    # This vector will be TRUE everywhere where charging is okay (unblocked) and
+    #   FALSE everywhere where charging has been blocked
+    unblocked_charging_vec <- rep(TRUE, yr_hrs)
+
+    if (!apply_profile_weekdays) {
+      # Vector which is TRUE on weekend hours, FALSE on weekday hours
+      weekend_hour_indicator <- lubridate::wday(datetime_8760) %in% c("7", "1")
+
+      # Block weekday hours
+      unblocked_charging_vec <- unblocked_charging_vec * weekend_hour_indicator
+    }
+
+    if (!apply_profile_weekends) {
+      # Vector which is TRUE on weekday hours, FALSE on weekend hours
+      weekday_hour_indicator <- !(
+        lubridate::wday(datetime_8760) %in% c("7", "1")
+      )
+
+      # Block weekend hours
+      unblocked_charging_vec <- unblocked_charging_vec * weekday_hour_indicator
+    }
+
+    if (length(apply_profile_months) < 12) {
+      # Vector which is TRUE on hours from included months, FALSE on all other
+      #   hours
+      month_hour_indicator <- lubridate::month(datetime_8760) %in%
+        apply_profile_months
+
+      # Block blocked months
+      unblocked_charging_vec <- unblocked_charging_vec * month_hour_indicator
+    }
 
 
 
-    # START RE-WRITE AROUND HERE. (You'll prob need to bring up the table you
-    #   construct below)
+
+
+
+    browser()
+    # START RE-WRITE AROUND HERE.
+    charging_tibble_full <- charging_tibble |>
+      dplyr::slice(rep(1:dplyr::n(), length.out = yr_hrs))
+
+    charging_tibble_full <- dplyr::bind_cols(
+      datetime_8760_col = datetime_8760,
+      charging_tibble_full,
+      rooftop_pv = renewables_tibble$`Rooftop PV`,
+      utility_pv = renewables_tibble$`Utility PV`
+    ) |>
+      dplyr::mutate(year_day = lubridate::yday(datetime_8760), .before = hour)
+
+    charging_tibble_full <- charging_tibble_full |>
+      dplyr::mutate(
+        `Charging allowed?` = as.numeric(discharge_hour_indicator),
+        `ES Profile (Unpaired)` = daily_load_reduction_utility *
+          `Charging allowed?` *
+          unblocked_charging_vec,
+      )
+
+
+
+
     # Start with charging allowed hour — should be easy, just uses discharge
     #   hour indicator
 
@@ -414,15 +473,33 @@ generate_reduction <- function(
 
 
 
-    # Now we take that daily load reduction (from both distributed and utility
-    #   storage) we got above and multiply it by the discharge hour indicator.
-    #   FALSEs get treated like 0s, and thus we zero out all non-discharging
-    #   hours from the vector
-    storage_load_reduction <- charging_tibble |>
-      dplyr::pull(daily_load_reduction_both) |>
-      rep(length.out = length(discharge_hour_indicator)) |>
-      (\(x) x * discharge_hour_indicator)() |>
-      unname()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # # Now we take that daily load reduction (from both distributed and utility
+    # #   storage) we got above and multiply it by the discharge hour indicator.
+    # #   FALSEs get treated like 0s, and thus we zero out all non-discharging
+    # #   hours from the vector
+    # storage_load_reduction <- charging_tibble |>
+    #   dplyr::pull(daily_load_reduction_both) |>
+    #   rep(length.out = length(discharge_hour_indicator)) |>
+    #   (\(x) x * discharge_hour_indicator)() |>
+    #   unname()
 
     # Finally, we need to restrict to times when charging is allowed (i.e.,
     #   remove all charging and discharging activity at times when it has been
