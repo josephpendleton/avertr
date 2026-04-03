@@ -461,6 +461,30 @@ generate_reduction <- function(
         `ES Profile (Unpaired)` = daily_load_reduction_utility *
           `Charging allowed?` *
           unblocked_charging_vec,
+        `Solar (Unpaired)` = -1 * utility_pv,
+        `Charging needed in day` = if_else(
+          (`Charging allowed?` * unblocked_charging_vec) == 1,
+          utility_storage_capacity_mw *
+            depth_of_discharge *
+            duration,
+          0
+        ),
+        `Disharging needed in day` = if_else(
+          (`Charging allowed?` * unblocked_charging_vec) == 1,
+          utility_storage_capacity_mw *
+            depth_of_discharge *
+            round_trip_efficiency *
+            duration,
+          0
+        )
+
+        # Ended at Available Solar in day. First, actually look at equation in
+        #   AVERT sheet to ensure you understand it. Then, before this mutate,
+        #   group by day, sum up solar, take the 366-length vector of sums,
+        #   expand each element by 24x, add a pipe here where you just bind_cols()
+        #   it into the tibble.
+
+
       )
 
 
