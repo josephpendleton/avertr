@@ -442,6 +442,9 @@ generate_reduction <- function(
 
 
 
+
+
+
     browser()
     # START RE-WRITE AROUND HERE.
     charging_tibble_full <- charging_tibble |>
@@ -454,6 +457,14 @@ generate_reduction <- function(
       utility_pv = renewables_tibble$`Utility PV`
     ) |>
       dplyr::mutate(year_day = lubridate::yday(datetime_8760), .before = hour)
+
+    # Get total solar available in each day, with each value expanded 24 times
+    #   (to be added to charging_tibble_full below)
+    total_solar_day_expanded <- charging_tibble_full |>
+      dplyr::select(year_day, utility_pv) |>
+      dplyr::summarize(daily_utility_pv = sum(utility_pv), .by = year_day) |>
+      dplyr::pull(daily_utility_pv) |>
+      rep(each = 24)
 
     charging_tibble_full <- charging_tibble_full |>
       dplyr::mutate(
@@ -476,7 +487,16 @@ generate_reduction <- function(
             round_trip_efficiency *
             duration,
           0
-        )
+        ),
+        `Available Solar in day` = total_solar_day_expanded *
+          `Charging allowed?` *
+          unblocked_charging_vec,
+        `Allowable Charging in day` = min(
+          -1 * `Available Solar in day`,
+          `Charging needed in day`
+        ),
+        `Allowable Disharging in day` = -1 * round_trip_efficiency
+
 
         # Ended at Available Solar in day. First, actually look at equation in
         #   AVERT sheet to ensure you understand it. Then, before this mutate,
