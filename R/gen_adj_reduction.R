@@ -458,13 +458,13 @@ generate_reduction <- function(
     ) |>
       dplyr::mutate(year_day = lubridate::yday(datetime_8760), .before = hour)
 
-    # Get total solar available in each day, with each value expanded 24 times
-    #   (to be added to charging_tibble_full below)
-    total_solar_day_expanded <- charging_tibble_full |>
-      dplyr::select(year_day, utility_pv) |>
-      dplyr::summarize(daily_utility_pv = sum(utility_pv), .by = year_day) |>
-      dplyr::pull(daily_utility_pv) |>
-      rep(each = 24)
+    # # Get total solar available in each day, with each value expanded 24 times
+    # #   (to be added to charging_tibble_full below)
+    # total_solar_day_expanded <- charging_tibble_full |>
+    #   dplyr::select(year_day, utility_pv) |>
+    #   dplyr::summarize(daily_utility_pv = sum(utility_pv), .by = year_day) |>
+    #   dplyr::pull(daily_utility_pv) |>
+    #   rep(each = 24)
 
     charging_tibble_full <- charging_tibble_full |>
       dplyr::mutate(
@@ -487,25 +487,68 @@ generate_reduction <- function(
             round_trip_efficiency *
             duration,
           0
-        ),
-        `Available Solar in day` = total_solar_day_expanded *
+        )
+      )
+
+    charging_tibble_full <- charging_tibble_full |>
+      dplyr::mutate(
+        `Available Solar in day` = sum(utility_pv) *
           `Charging allowed?` *
           unblocked_charging_vec,
+        .by = year_day
+      )
+
+    charging_tibble_full <- charging_tibble_full |>
+      dplyr::mutate(
         `Allowable Charging in day` = min(
           -1 * `Available Solar in day`,
           `Charging needed in day`
         ),
-        `Allowable Disharging in day` = -1 * round_trip_efficiency
-
-
-        # Ended at Available Solar in day. First, actually look at equation in
-        #   AVERT sheet to ensure you understand it. Then, before this mutate,
-        #   group by day, sum up solar, take the 366-length vector of sums,
-        #   expand each element by 24x, add a pipe here where you just bind_cols()
-        #   it into the tibble.
-
-
+        `Allowable Disharging in day` = -1 * round_trip_efficiency,
+        `HELPER - flag overloaded hour` = if_else(
+          (
+            `ES Profile (Unpaired)` > 0 &
+              `Charging needed in day` < (-1 * `Available Solar in day`) &
+              `ES Profile (Unpaired)` > (-1 * `Solar (Unpaired)`)
+          ),
+          1,
+          0
+        )
       )
+
+    charging_tibble_full <- charging_tibble_full |>
+      dplyr::mutate(
+        `HELPER - flag overloaded day` = sum(`HELPER - flag overloaded hour`),
+        .by = year_day
+      )
+
+    cum_av_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
+    max_allow_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
+
+    # ENDED at adding HELPER - max allowable charge in day column. You prob.
+    #   need to incorporate it into the for loop below (and again you need to
+    #   account for i = 1 as an edge case.)
+    # Actually consider that just making a separate for loop might be cleaner
+
+    for (i in 1:nrow(charging_tibble_full)) {
+
+      if (`HELPER - flag overloaded day`[i] > 0) {
+        if (`ES Profile (Unpaired)`[i] <= 0) {
+          cum_av_charge_vec[i] = 0
+        } else {
+          cum_av_charge_vec[i] =
+            (-1 * `Solar (Unpaired)`[i]) + if (i == 1) 0 else cum_av_charge_vec[i - 1]
+        }
+      } else {
+        cum_av_charge_vec[i] = 0
+      }
+
+    }
+
+    charging_tibble_full <- charging_tibble_full |>
+      dplyr::bind_cols(`HELPER - cumulative available charge in day`)
+
+
 
 
 
