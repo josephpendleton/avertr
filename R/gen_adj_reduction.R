@@ -523,7 +523,6 @@ generate_reduction <- function(
       )
 
     cum_av_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
-    max_allow_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
 
     # ENDED at adding HELPER - max allowable charge in day column. You prob.
     #   need to incorporate it into the for loop below (and again you need to
@@ -545,19 +544,42 @@ generate_reduction <- function(
 
     }
 
+    max_allow_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
+
+    for (i in 1:nrow(charging_tibble_full)) {
+      if (cum_av_charge_vec[i] == 0) {
+        max_allow_charge_vec[i] = 0
+      } else {
+        if (cum_av_charge_vec[i] < charging_tibble_full$`Allowable Charging in day`[i]) {
+          max_allow_charge_vec[i] = -1 * charging_tibble_full$`Solar (Unpaired)`[i]
+        } else {
+          max_allow_charge_vec[i] = charging_tibble_full$`Allowable Charging in day`[i] -
+            if (i == 1) 0 else cum_av_charge_vec[i - 1]
+        }
+      }
+    }
+
     charging_tibble_full <- charging_tibble_full |>
-      dplyr::bind_cols(`HELPER - cumulative available charge in day`)
+      dplyr::bind_cols(
+        `HELPER - cumulative available charge in day` = cum_av_charge_vec,
+        `HELPER - max allowable charge in day` = max_allow_charge_vec
+      )
+
+    charging_tibble_full <- charging_tibble_full |>
+      mutate(
+        `ES Profile (Paired)` = dplyr::case_when(
+          `ES Profile (Unpaired)` == 0 ~ 0,
+          `ES Profile (Unpaired)` < 0 ~ `Allowable Disharging in day` / num_discharge_hrs,
+          `HELPER - flag overloaded day` > 0 ~ `HELPER - max allowable charge in day`,
+          `Charging needed in day` > `Allowable Charging in day` ~ -1 * `Solar (Unpaired)`,
+          .default = `ES Profile (Unpaired)`
+        )
+      )
 
 
-
-
-
-
-    # Start with charging allowed hour — should be easy, just uses discharge
-    #   hour indicator
-
-
-
+    # Next try running this (you'll prob need to add "dplyr::" in a few spots).
+    # Then write function to call this once for utility, once for distributed
+    #   (see initial code below) and then combine
 
 
 
