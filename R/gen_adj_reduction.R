@@ -473,14 +473,14 @@ generate_reduction <- function(
           `Charging allowed?` *
           unblocked_charging_vec,
         `Solar (Unpaired)` = -1 * utility_pv,
-        `Charging needed in day` = if_else(
+        `Charging needed in day` = dplyr::if_else(
           (`Charging allowed?` * unblocked_charging_vec) == 1,
           utility_storage_capacity_mw *
             depth_of_discharge *
             duration,
           0
         ),
-        `Disharging needed in day` = if_else(
+        `Disharging needed in day` = dplyr::if_else(
           (`Charging allowed?` * unblocked_charging_vec) == 1,
           utility_storage_capacity_mw *
             depth_of_discharge *
@@ -493,9 +493,13 @@ generate_reduction <- function(
     charging_tibble_full <- charging_tibble_full |>
       dplyr::mutate(
         `Available Solar in day` = sum(utility_pv) *
-          `Charging allowed?` *
-          unblocked_charging_vec,
+          `Charging allowed?`,
         .by = year_day
+      )
+
+    charging_tibble_full <- charging_tibble_full |>
+      dplyr::mutate(
+        `Available Solar in day` = `Available Solar in day` * unblocked_charging_vec,
       )
 
     charging_tibble_full <- charging_tibble_full |>
@@ -505,7 +509,7 @@ generate_reduction <- function(
           `Charging needed in day`
         ),
         `Allowable Disharging in day` = -1 * round_trip_efficiency,
-        `HELPER - flag overloaded hour` = if_else(
+        `HELPER - flag overloaded hour` = dplyr::if_else(
           (
             `ES Profile (Unpaired)` > 0 &
               `Charging needed in day` < (-1 * `Available Solar in day`) &
@@ -524,10 +528,7 @@ generate_reduction <- function(
 
     cum_av_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
 
-    # ENDED at adding HELPER - max allowable charge in day column. You prob.
-    #   need to incorporate it into the for loop below (and again you need to
-    #   account for i = 1 as an edge case.)
-    # Actually consider that just making a separate for loop might be cleaner
+    attach(charging_tibble_full)
 
     for (i in 1:nrow(charging_tibble_full)) {
 
@@ -544,7 +545,11 @@ generate_reduction <- function(
 
     }
 
+    detach(charging_tibble_full)
+
     max_allow_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
+
+    attach(charging_tibble_full)
 
     for (i in 1:nrow(charging_tibble_full)) {
       if (cum_av_charge_vec[i] == 0) {
@@ -559,6 +564,8 @@ generate_reduction <- function(
       }
     }
 
+    detach(charging_tibble_full)
+
     charging_tibble_full <- charging_tibble_full |>
       dplyr::bind_cols(
         `HELPER - cumulative available charge in day` = cum_av_charge_vec,
@@ -566,7 +573,7 @@ generate_reduction <- function(
       )
 
     charging_tibble_full <- charging_tibble_full |>
-      mutate(
+      dplyr::mutate(
         `ES Profile (Paired)` = dplyr::case_when(
           `ES Profile (Unpaired)` == 0 ~ 0,
           `ES Profile (Unpaired)` < 0 ~ `Allowable Disharging in day` / num_discharge_hrs,
@@ -577,7 +584,7 @@ generate_reduction <- function(
       )
 
 
-    # Next try running this (you'll prob need to add "dplyr::" in a few spots).
+
     # Then write function to call this once for utility, once for distributed
     #   (see initial code below) and then combine
 
@@ -588,9 +595,9 @@ generate_reduction <- function(
 
 
 
+    # Ignore everything below here for now
 
-
-
+################################################################################
 
 
 

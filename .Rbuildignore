@@ -11,3 +11,5 @@
 ^README\.Rmd$
 ^\./preparation_scripts$
 ^avertr_test_run_tests\.R$
+^\.positai$
+^\.claude$
