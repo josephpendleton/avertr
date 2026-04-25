@@ -446,7 +446,7 @@ generate_reduction <- function(
 
 
     browser()
-    # START RE-WRITE AROUND HERE.
+
     charging_tibble_full <- charging_tibble |>
       dplyr::slice(rep(1:dplyr::n(), length.out = yr_hrs))
 
@@ -458,138 +458,139 @@ generate_reduction <- function(
     ) |>
       dplyr::mutate(year_day = lubridate::yday(datetime_8760), .before = hour)
 
-    # # Get total solar available in each day, with each value expanded 24 times
-    # #   (to be added to charging_tibble_full below)
-    # total_solar_day_expanded <- charging_tibble_full |>
-    #   dplyr::select(year_day, utility_pv) |>
-    #   dplyr::summarize(daily_utility_pv = sum(utility_pv), .by = year_day) |>
-    #   dplyr::pull(daily_utility_pv) |>
-    #   rep(each = 24)
 
-    charging_tibble_full <- charging_tibble_full |>
-      dplyr::mutate(
-        `Charging allowed?` = as.numeric(discharge_hour_indicator),
-        `ES Profile (Unpaired)` = daily_load_reduction_utility *
-          `Charging allowed?` *
-          unblocked_charging_vec,
-        `Solar (Unpaired)` = -1 * utility_pv,
-        `Charging needed in day` = dplyr::if_else(
-          (`Charging allowed?` * unblocked_charging_vec) == 1,
-          utility_storage_capacity_mw *
-            depth_of_discharge *
-            duration,
-          0
-        ),
-        `Disharging needed in day` = dplyr::if_else(
-          (`Charging allowed?` * unblocked_charging_vec) == 1,
-          utility_storage_capacity_mw *
-            depth_of_discharge *
-            round_trip_efficiency *
-            duration,
-          0
-        )
-      )
+    build_charging_tibble_full <- function(daily_load_reduction, pv, storage_capacity_mw) {
 
-    charging_tibble_full <- charging_tibble_full |>
-      dplyr::mutate(
-        `Available Solar in day` = sum(utility_pv) *
-          `Charging allowed?`,
-        .by = year_day
-      )
-
-    charging_tibble_full <- charging_tibble_full |>
-      dplyr::mutate(
-        `Available Solar in day` = `Available Solar in day` * unblocked_charging_vec,
-      )
-
-    charging_tibble_full <- charging_tibble_full |>
-      dplyr::mutate(
-        `Allowable Charging in day` = min(
-          -1 * `Available Solar in day`,
-          `Charging needed in day`
-        ),
-        `Allowable Disharging in day` = -1 * round_trip_efficiency,
-        `HELPER - flag overloaded hour` = dplyr::if_else(
-          (
-            `ES Profile (Unpaired)` > 0 &
-              `Charging needed in day` < (-1 * `Available Solar in day`) &
-              `ES Profile (Unpaired)` > (-1 * `Solar (Unpaired)`)
+      charging_tibble_full <- charging_tibble_full |>
+        dplyr::mutate(
+          `Charging allowed?` = as.numeric(discharge_hour_indicator),
+          `ES Profile (Unpaired)` = {{daily_load_reduction}} *
+            `Charging allowed?` *
+            unblocked_charging_vec,
+          `Solar (Unpaired)` = -1 * {{pv}},
+          `Charging needed in day` = dplyr::if_else(
+            (`Charging allowed?` * unblocked_charging_vec) == 1,
+            {{storage_capacity_mw}} *
+              depth_of_discharge *
+              duration,
+            0
           ),
-          1,
-          0
+          `Disharging needed in day` = dplyr::if_else(
+            (`Charging allowed?` * unblocked_charging_vec) == 1,
+            {{storage_capacity_mw}} *
+              depth_of_discharge *
+              round_trip_efficiency *
+              duration,
+            0
+          )
         )
-      )
 
-    charging_tibble_full <- charging_tibble_full |>
-      dplyr::mutate(
-        `HELPER - flag overloaded day` = sum(`HELPER - flag overloaded hour`),
-        .by = year_day
-      )
+      charging_tibble_full <- charging_tibble_full |>
+        dplyr::mutate(
+          `Available Solar in day` = sum({{pv}}) *
+            `Charging allowed?`,
+          .by = year_day
+        )
 
-    cum_av_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
+      charging_tibble_full <- charging_tibble_full |>
+        dplyr::mutate(
+          `Available Solar in day` = `Available Solar in day` * unblocked_charging_vec,
+        )
 
-    attach(charging_tibble_full)
+      charging_tibble_full <- charging_tibble_full |>
+        dplyr::mutate(
+          `Allowable Charging in day` = min(
+            -1 * `Available Solar in day`,
+            `Charging needed in day`
+          ),
+          `Allowable Disharging in day` = -1 * round_trip_efficiency,
+          `HELPER - flag overloaded hour` = dplyr::if_else(
+            (
+              `ES Profile (Unpaired)` > 0 &
+                `Charging needed in day` < (-1 * `Available Solar in day`) &
+                `ES Profile (Unpaired)` > (-1 * `Solar (Unpaired)`)
+            ),
+            1,
+            0
+          )
+        )
 
-    for (i in 1:nrow(charging_tibble_full)) {
+      charging_tibble_full <- charging_tibble_full |>
+        dplyr::mutate(
+          `HELPER - flag overloaded day` = sum(`HELPER - flag overloaded hour`),
+          .by = year_day
+        )
 
-      if (`HELPER - flag overloaded day`[i] > 0) {
-        if (`ES Profile (Unpaired)`[i] <= 0) {
+      cum_av_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
+
+      attach(charging_tibble_full)
+
+      for (i in 1:nrow(charging_tibble_full)) {
+
+        if (`HELPER - flag overloaded day`[i] > 0) {
+          if (`ES Profile (Unpaired)`[i] <= 0) {
+            cum_av_charge_vec[i] = 0
+          } else {
+            cum_av_charge_vec[i] =
+              (-1 * `Solar (Unpaired)`[i]) + if (i == 1) 0 else cum_av_charge_vec[i - 1]
+          }
+        } else {
           cum_av_charge_vec[i] = 0
-        } else {
-          cum_av_charge_vec[i] =
-            (-1 * `Solar (Unpaired)`[i]) + if (i == 1) 0 else cum_av_charge_vec[i - 1]
         }
-      } else {
-        cum_av_charge_vec[i] = 0
+
       }
 
-    }
+      detach(charging_tibble_full)
 
-    detach(charging_tibble_full)
+      max_allow_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
 
-    max_allow_charge_vec <- rep(NA, length.out = nrow(charging_tibble_full))
+      attach(charging_tibble_full)
 
-    attach(charging_tibble_full)
-
-    for (i in 1:nrow(charging_tibble_full)) {
-      if (cum_av_charge_vec[i] == 0) {
-        max_allow_charge_vec[i] = 0
-      } else {
-        if (cum_av_charge_vec[i] < charging_tibble_full$`Allowable Charging in day`[i]) {
-          max_allow_charge_vec[i] = -1 * charging_tibble_full$`Solar (Unpaired)`[i]
+      for (i in 1:nrow(charging_tibble_full)) {
+        if (cum_av_charge_vec[i] == 0) {
+          max_allow_charge_vec[i] = 0
         } else {
-          max_allow_charge_vec[i] = charging_tibble_full$`Allowable Charging in day`[i] -
-            if (i == 1) 0 else cum_av_charge_vec[i - 1]
+          if (cum_av_charge_vec[i] < charging_tibble_full$`Allowable Charging in day`[i]) {
+            max_allow_charge_vec[i] = -1 * charging_tibble_full$`Solar (Unpaired)`[i]
+          } else {
+            max_allow_charge_vec[i] = charging_tibble_full$`Allowable Charging in day`[i] -
+              if (i == 1) 0 else cum_av_charge_vec[i - 1]
+          }
         }
       }
-    }
 
-    detach(charging_tibble_full)
+      detach(charging_tibble_full)
 
-    charging_tibble_full <- charging_tibble_full |>
-      dplyr::bind_cols(
-        `HELPER - cumulative available charge in day` = cum_av_charge_vec,
-        `HELPER - max allowable charge in day` = max_allow_charge_vec
-      )
-
-    charging_tibble_full <- charging_tibble_full |>
-      dplyr::mutate(
-        `ES Profile (Paired)` = dplyr::case_when(
-          `ES Profile (Unpaired)` == 0 ~ 0,
-          `ES Profile (Unpaired)` < 0 ~ `Allowable Disharging in day` / num_discharge_hrs,
-          `HELPER - flag overloaded day` > 0 ~ `HELPER - max allowable charge in day`,
-          `Charging needed in day` > `Allowable Charging in day` ~ -1 * `Solar (Unpaired)`,
-          .default = `ES Profile (Unpaired)`
+      charging_tibble_full <- charging_tibble_full |>
+        dplyr::bind_cols(
+          `HELPER - cumulative available charge in day` = cum_av_charge_vec,
+          `HELPER - max allowable charge in day` = max_allow_charge_vec
         )
-      )
+
+      charging_tibble_full <- charging_tibble_full |>
+        dplyr::mutate(
+          `ES Profile (Paired)` = dplyr::case_when(
+            `ES Profile (Unpaired)` == 0 ~ 0,
+            `ES Profile (Unpaired)` < 0 ~ `Allowable Disharging in day` / num_discharge_hrs,
+            `HELPER - flag overloaded day` > 0 ~ `HELPER - max allowable charge in day`,
+            `Charging needed in day` > `Allowable Charging in day` ~ -1 * `Solar (Unpaired)`,
+            .default = `ES Profile (Unpaired)`
+          )
+        )
+    }
 
 
 
-    # Then write function to call this once for utility, once for distributed
-    #   (see initial code below) and then combine
+    TESTOUT_UTILITY <- build_charging_tibble_full(daily_load_reduction_utility, utility_pv, utility_storage_capacity_mw)
+    TESTOUT_DISTRIBUTED <- build_charging_tibble_full(daily_load_reduction_distributed, rooftop_pv, distributed_storage_capacity_mw)
+
+    # Ended here — in the process of comparing results of this function call
+    #   against AVERT. Sign flip issue for first few cols, bigger issues in later
+    #   calls.
+    browser()
 
 
-
+    # Eventually, combine the results of the utility and distributed calls
 
 
 
