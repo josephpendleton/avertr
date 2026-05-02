@@ -466,7 +466,8 @@ generate_reduction <- function(
           `Charging allowed?` = as.numeric(discharge_hour_indicator),
           `ES Profile (Unpaired)` = {{daily_load_reduction}} *
             `Charging allowed?` *
-            unblocked_charging_vec,
+            unblocked_charging_vec *
+            -1,
           `Solar (Unpaired)` = -1 * {{pv}},
           `Charging needed in day` = dplyr::if_else(
             (`Charging allowed?` * unblocked_charging_vec) == 1,
@@ -480,17 +481,58 @@ generate_reduction <- function(
             {{storage_capacity_mw}} *
               depth_of_discharge *
               round_trip_efficiency *
-              duration,
+              duration *
+              -1,
             0
           )
         )
 
+      browser()
+      # Sum up all the Solar (Unpaired) rows from this
+      #   day where ES Profile (Unpaired) > 0
       charging_tibble_full <- charging_tibble_full |>
+        # First, make a col which is TRUE when ES Profile (Unpaired) > 0, FALSE
+        #   otherwise, then remove these hours from pv to create a new col
         dplyr::mutate(
-          `Available Solar in day` = sum({{pv}}) *
-            `Charging allowed?`,
+          `ES Profile (Unpaired) > 0` = `ES Profile (Unpaired)` > 0,
+          `Available Solar in day` = {{pv}} *
+            `ES Profile (Unpaired) > 0`
+        ) |>
+        # Within each day, sum up the new column
+        dplyr::mutate(
+          `Available Solar in day` = sum(`Available Solar in day`),
           .by = year_day
-        )
+        ) |>
+        # Remove the helper column — no longer needed, doesn't appear in AVERT
+        dplyr::select(!`ES Profile (Unpaired) > 0`)
+
+
+
+
+
+
+      # Ended here. `Available Solar in day` seems correct but sign flipped, and
+      #   I have no idea how since it comes from summing pv, which is clearly all
+      #   negative values, so how do we end up with a positive sum???
+      # Also, pretty sure you should delete the next code chunk
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
       charging_tibble_full <- charging_tibble_full |>
         dplyr::mutate(
